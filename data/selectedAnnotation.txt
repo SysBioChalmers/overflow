@@ -374,3 +374,153 @@ P51601	YGR267C	FOL2	THF cycle
 Q12676	YMR113W	FOL3	THF cycle
 P46151	YPL023C	MET12	THF cycle
 Q03266	YMR289W	ABZ2	THF cycle
+P07262	YOR375C	GDH1	Nitrogen metabolism
+P07275	YHR037W	PUT2	Nitrogen metabolism
+P09368	YLR142W	PUT1	Nitrogen metabolism
+P13090	YML116W	ATR1	Nitrogen metabolism
+P21954	YDL066W	IDP1	Nitrogen metabolism
+P25613	YCR010C	ADY2	Nitrogen metabolism
+P26370	YDL170W	UGA3	Nitrogen metabolism
+P28241	YOR136W	IDH2	Nitrogen metabolism
+P28834	YNL037C	IDH1	Nitrogen metabolism
+P32288	YPR035W	GLN1	Nitrogen metabolism
+P32907	YNR002C	ATO2	Nitrogen metabolism
+P39708	YAL062W	GDH3	Nitrogen metabolism
+P40260	YGR121C	MEP1	Nitrogen metabolism
+P41948	YNL142W	MEP2	Nitrogen metabolism
+P53390	YPR138C	MEP3	Nitrogen metabolism
+Q03263	YMR279C		Nitrogen metabolism
+Q07938	YLR017W	MEU1	Nitrogen metabolism
+Q08902	YOR378W	AMF1	Nitrogen metabolism
+Q12359	YDR384C	ATO3	Nitrogen metabolism
+Q12680	YDL171C	GLT1	Nitrogen metabolism
+P07245	YGR204W	ADE3	Amino acid metabolism
+P40510	YIL074C	SER33	Amino acid metabolism
+P47176	YJR148W	BAT2	Amino acid metabolism
+Q01217	YER069W	ARG5,6	Amino acid metabolism
+P08566	YDR127W	ARO1	Amino acid metabolism
+P38998	YIR034C	LYS1	Amino acid metabolism
+P36007	YKL218C	SRY1	Amino acid metabolism
+P40495	YIL094C	LYS12	Amino acid metabolism
+P21954	YDL066W	IDP1	Amino acid metabolism
+P08536	YJR010W	MET3	Amino acid metabolism
+P47169	YJR137C	MET5	Amino acid metabolism
+P32179	YOL064C	MET22	Amino acid metabolism
+P32389	YNL103W	MET4	Amino acid metabolism
+P03069	YEL009C	GCN4	Amino acid metabolism
+Q12680	YDL171C	GLT1	Amino acid metabolism
+P38840	YHR137W	ARO9	Amino acid metabolism
+Q04728	YMR062C	ARG7	Amino acid metabolism
+P05150	YJL088W	ARG3	Amino acid metabolism
+P07342	YMR108W	ILV2	Amino acid metabolism
+P39014	YIL046W	MET30	Amino acid metabolism
+P15807	YBR213W	MET8	Amino acid metabolism
+P28241	YOR136W	IDH2	Amino acid metabolism
+P37292	YBR263W	SHM1	Amino acid metabolism
+P06168	YLR355C	ILV5	Amino acid metabolism
+P33734	YBR248C	HIS7	Amino acid metabolism
+P28834	YNL037C	IDH1	Amino acid metabolism
+P22768	YOL058W	ARG1	Amino acid metabolism
+P04076	YHR018C	ARG4	Amino acid metabolism
+P07991	YLR438W	CAR2	Amino acid metabolism
+P03965	YJR109C	CPA2	Amino acid metabolism
+P28777	YGL148W	ARO2	Amino acid metabolism
+P32449	YBR249C	ARO4	Amino acid metabolism
+P32288	YPR035W	GLN1	Amino acid metabolism
+P00498	YER055C	HIS1	Amino acid metabolism
+P38999	YNR050C	LYS9	Amino acid metabolism
+Q04533	YML082W		Amino acid metabolism
+P04173	YCL018W	LEU2	Amino acid metabolism
+Q12122	YDL131W	LYS21	Amino acid metabolism
+P08638	YLR451W	LEU3	Amino acid metabolism
+P17423	YHR025W	THR1	Amino acid metabolism
+P00815	YCL030C	HIS4	Amino acid metabolism
+P07172	YIL116W	HIS5	Amino acid metabolism
+P06208	YNL104C	LEU4	Amino acid metabolism
+P40971	YDR034C	LYS14	Amino acid metabolism
+P47164	YJR130C	STR2	Amino acid metabolism
+P49089	YPR145W	ASN1	Amino acid metabolism
+P25605	YCL009C	ILV6	Amino acid metabolism
+P32452	YNL316C	PHA2	Amino acid metabolism
+Q12525	YLL062C	MHT1	Amino acid metabolism
+P40573	YIR017C	MET28	Amino acid metabolism
+Q03677	YMR009W	ADI1	Amino acid metabolism
+P10869	YER052C	HOM3	Amino acid metabolism
+P39692	YFR030W	MET10	Amino acid metabolism
+P53206	YGR012W	MCY1	Amino acid metabolism
+P07702	YBR115C	LYS2	Amino acid metabolism
+P53128	YGL125W	MET13	Amino acid metabolism
+P05694	YER091C	MET6	Amino acid metabolism
+P40185	YIL051C	MMF1	Amino acid metabolism
+P54114	YMR169C	ALD3	Amino acid metabolism
+Q12198	YLL058W		Amino acid metabolism
+P43623	YFR055W	IRC7	Amino acid metabolism
+P18544	YOL140W	ARG8	Amino acid metabolism
+P08465	YNL277W	MET2	Amino acid metabolism
+P38635	YFR025C	HIS2	Amino acid metabolism
+P50113	YGL154C	LYS5	Amino acid metabolism
+P46151	YPL023C	MET12	Amino acid metabolism
+P18408	YPR167C	MET16	Amino acid metabolism
+P47095	YJR024C	MDE1	Amino acid metabolism
+Q06489	YPR118W	MRI1	Amino acid metabolism
+P33330	YOR184W	SER1	Amino acid metabolism
+P07264	YGL009C	LEU1	Amino acid metabolism
+Q07938	YLR017W	MEU1	Amino acid metabolism
+P07275	YHR037W	PUT2	Amino acid metabolism
+P49367	YDR234W	LYS4	Amino acid metabolism
+P40360	YJL071W	ARG2	Amino acid metabolism
+Q12166	YOR108W	LEU9	Amino acid metabolism
+P40545	YIL020C	HIS6	Amino acid metabolism
+P39522	YJR016C	ILV3	Amino acid metabolism
+P49090	YGR124W	ASN2	Amino acid metabolism
+Q04489	YML096W		Amino acid metabolism
+P07807	YOR236W	DFR1	Amino acid metabolism
+Q02196	YKL001C	MET14	Amino acid metabolism
+P39708	YAL062W	GDH3	Amino acid metabolism
+P54885	YOR323C	PRO2	Amino acid metabolism
+Q12375	YOR130C	ORT1	Amino acid metabolism
+P40054	YER081W	SER3	Amino acid metabolism
+P32263	YER023W	PRO3	Amino acid metabolism
+P09368	YLR142W	PUT1	Amino acid metabolism
+P32264	YDR300C	PRO1	Amino acid metabolism
+P42941	YGR208W	SER2	Amino acid metabolism
+P06633	YOR202W	HIS3	Amino acid metabolism
+P53090	YGL202W	ARO8	Amino acid metabolism
+P32582	YGR155W	CYS4	Amino acid metabolism
+P39533	YJL200C	ACO2	Amino acid metabolism
+P14843	YDR035W	ARO3	Amino acid metabolism
+P48570	YDL182W	LYS20	Amino acid metabolism
+P37303	YEL046C	GLY1	Amino acid metabolism
+P37291	YLR058C	SHM2	Amino acid metabolism
+P31116	YJR139C	HOM6	Amino acid metabolism
+P32626	YEL038W	UTR4	Amino acid metabolism
+P09624	YFL018C	LPD1	Amino acid metabolism
+P00912	YDR007W	TRP1	Amino acid metabolism
+P16120	YCR053W	THR4	Amino acid metabolism
+P20049	YBR166C	TYR1	Amino acid metabolism
+P36150	YKR069W	MET1	Amino acid metabolism
+P00937	YKL211C	TRP3	Amino acid metabolism
+P00931	YGL026C	TRP5	Amino acid metabolism
+P00927	YER086W	ILV1	Amino acid metabolism
+P07259	YJL130C	URA2	Amino acid metabolism
+P07285	YDR354W	TRP4	Amino acid metabolism
+P00899	YER090W	TRP2	Amino acid metabolism
+P25379	YCL064C	CHA1	Amino acid metabolism
+Q08985	YPL273W	SAM4	Amino acid metabolism
+P38690	YHR033W		Amino acid metabolism
+P53101	YGL184C	STR3	Amino acid metabolism
+Q04898	YMR321C		Amino acid metabolism
+P32178	YPR060C	ARO7	Amino acid metabolism
+P07262	YOR375C	GDH1	Amino acid metabolism
+P09440	YBR084W	MIS1	Amino acid metabolism
+P25355	YCR054C	CTR86	Amino acid metabolism
+P13663	YDR158W	HOM2	Amino acid metabolism
+P23542	YLR027C	AAT2	Amino acid metabolism
+P37254	YNR033W	ABZ1	Amino acid metabolism
+P31373	YAL012W	CYS3	Amino acid metabolism
+P47771	YMR170C	ALD2	Amino acid metabolism
+P38891	YHR208W	BAT1	Amino acid metabolism
+P06106	YLR303W	MET17	Amino acid metabolism
+P52893	YLR089C	ALT1	Amino acid metabolism
+P43567	YFL030W	AGX1	Amino acid metabolism
+P07258	YOR303W	CPA1	Amino acid metabolism
