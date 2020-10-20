@@ -1,3 +1,6 @@
+[![Zenodo DOI](https://zenodo.org/badge/288161152.svg)](https://zenodo.org/badge/latestdoi/288161152)
+
+
 ## Instructions
 The `code` folder contains a number of scripts to reconstruct the models and replicate the analysis. Note that the user should have [RAVEN 2.4.0](https://github.com/SysBioChalmers/RAVEN/releases) or later installed.
 
