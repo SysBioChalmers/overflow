@@ -1,35 +1,44 @@
 % This script generates condition-specific proteome-integrated ec-models.
 
 %prepareEnvironment % Run if required
-cd GECKO/geckomat/limit_proteins
-GAM = fitGAM(ecModel_batch);
-cd(code)
+% cd GECKO/geckomat/limit_proteins
+% GAM = fitGAM(ecModel);
+% cd(code)
 for i=1:length(flux.conds)
-    disp(['Construct ecModel for condition: ' flux.conds{i}])
+    disp(['Construct ecModel for condition: ' fluxData.conds{i}])
     
     %% Preparing proteomics data
     %Extract data for the i-th condition
-    abundances   = prot.data(:,repl.first(i):repl.last(i));
-       
-    %Calculate sample specific f-factor, before filtering data. While there
-    %might be individual proteins with too much variability, this should
-    %not affect f calculation too much, meanwhile ensuring higher coverage.
-    cd GECKO/geckomat/limit_proteins
-    f = measureAbundance(ecModel.enzymes,prot.IDs,mean(abundances,2,'omitnan'));
-    sumP = sum(mean(abundances,2,'omitnan'),'omitnan');
-    
-    %Filter proteomics data, to only keep high quality measurements
-    cd ../utilities/integrate_proteomics
-    [pIDs, filtAbundances] = filter_ProtData(prot.IDs,abundances,1.96,true);
+    sampleProt.abundances = protData.abundances(:,i);
+    sampleProt.uniprotIDs = protData.uniprotIDs;
 
-    disp(['Filtered out ' num2str(round((1-(numel(pIDs)/numel(prot.IDs)))*100,1)) '% of protein measurements due to low quality.'])
-    cd ..
-    
-    %correct oxPhos complexes abundances
-    for j=1:length(oxPhos)
-       [filtAbundances,pIDs] = fixComplex(oxPhos{j},ecModel,filtAbundances,pIDs); end
+    %Calculate sample specific f-factor
+    f = calculateFfactor(ecModel,sampleProt);
     
     %% Scale biomass to new protein content and recalculate GAM
+    ecModelP = scaleBioMass(ecModel,'protein',fluxData.Ptot(i),'carbohydrate');
+
+    ecModelP = fillEnzConcs(ecModelP,sampleProt);
+    ecModelP = constrainEnzConcs(ecModelP);
+
+    ecModelP = setProtPoolSize(ecModelP,fluxData.Ptot(i),f);
+
+    ecModelP = constrainFluxData(ecModelP,fluxData,1,'max','loose');
+    sol = solveLP(ecModelP)
+
+    [ecModelP2, flexEnz] = flexibilizeEnzConcs(ecModelP,fluxData.grRate(i),100);
+
+    model = loadConventionalGEM;
+    modelP = constrainFluxData(model,fluxData,1,'max',15);
+    modelP = scaleBioMass(modelP,'protein',fluxData.Ptot(i),'carbohydrate');
+    sol = solveLP(modelP)
+    printFluxes(modelP,sol.x)
+
+    sol = solveLP(ecModelP)
+
+    [ecModelP, flexEnz] = flexibilizeEnzConcs(ecModelP,fluxData.grRate(i),10);
+
+
     %Set minimal medium for the model which will have proteomics
     %integrated, in addition to tempModel that will be used to determine
     %minimum required protein abundances

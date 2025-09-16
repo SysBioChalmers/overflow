@@ -41,8 +41,15 @@ classdef ecYeastOverflowAdapter < ModelAdapter
             % different compartments). Typically, cytoplasm is chosen.
 			obj.params.enzyme_comp = 'cytoplasm';			
         end
-		
-		function [spont,spontRxnNames] = getSpontaneousReactions(obj,model)
+        function ecModel = makeModelAnaerobic(obj,ecModel)
+            % Taken from yeast-GEM 9.0.2
+            ecModel = anaerobicModel_GECKO(ecModel);
+        end
+	    function ecModel = changeProteinBiomass(obj,ecModel,Ptot)
+            % Taken from yeast-GEM 9.0.2
+            ecModel = scaleBioMass_GECKO(ecModel,'protein',Ptot,'carbohydrate',false);
+        end
+        function [spont,spontRxnNames] = getSpontaneousReactions(obj,model)
             % Indicates how spontaneous reactions are identified. Here it
             % is done by the reaction have 'spontaneous' in its name.
 			spont = contains(model.rxnNames,'spontaneous');
