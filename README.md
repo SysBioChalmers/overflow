@@ -88,6 +88,18 @@ Options change what the models are asked to account for:
   default: the model has no carbon to spare at the measured glucose uptake, and
   CN4 then falls short of its dilution rate.
 
+## Adding the ribosome
+
+```bash
+python -m overflow.build_ribosome
+```
+
+Writes `models/ecModel_P_<cond>_ribosome.yml`. The protein pseudoreaction is
+split so that protein comes out of a `translation` reaction catalysed by the
+ribosomal subunits, at 10.5 amino acids per second per ribosome. The core is
+the 48 subunits whose average abundance across all conditions reaches
+1e-5 mmol/gDW.
+
 ## Tests
 
 ```bash
