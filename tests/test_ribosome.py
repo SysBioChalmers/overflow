@@ -373,3 +373,18 @@ def test_subunit_abundances_are_milligrams():
         load_conditions()["CN4"], selected, table=table, masses={"A": 30000.0}
     )
     assert result["A"] == pytest.approx(1e-5 * 30000.0)
+
+
+def test_ribosome_cost_is_proportional_to_how_fast_protein_is_made(model, subunits):
+    """Translation is charged per unit of protein, so halving the supply
+    halves the ribosome. Across the real conditions this shows up as
+    11.5 mg/gDW at D=0.1 and 33.3 at D=0.29, a ratio of 2.90 against a
+    dilution-rate ratio of 2.9."""
+    add_ribosome(model, subunits, protein_rxn="r_protein")
+    full = model.optimize()
+    full_usage = abs(full.fluxes["usage_prot_R1"])
+
+    model.reactions.get_by_id("EX_S").upper_bound /= 2
+    half = model.optimize()
+    assert half.objective_value == pytest.approx(full.objective_value / 2)
+    assert abs(half.fluxes["usage_prot_R1"]) == pytest.approx(full_usage / 2)
