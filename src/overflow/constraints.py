@@ -84,6 +84,10 @@ def set_chemostat_constraints(
     uptake = -float(solution.fluxes[C_SOURCE])
     if minimise_protein:
         carbon.bounds = (-(1 + flex) * uptake, -uptake)
-        model.objective = POOL_RXN
-        model.objective.direction = "min"
+        # Written as maximising the negative rather than minimising,
+        # because a model file records objective coefficients but not
+        # the direction: read back, this still minimises protein, where
+        # a plain minimisation would come back maximising it.
+        model.objective = {model.reactions.get_by_id(POOL_RXN): -1.0}
+        model.objective.direction = "max"
     return uptake
