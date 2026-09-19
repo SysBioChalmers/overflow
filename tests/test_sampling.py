@@ -154,3 +154,26 @@ def test_cofactor_turnover_is_reported_per_compartment(conv_model, legacy_means)
     compartments = {k for k in turnover.index if k != "rNAD[tot]"}
     assert len(compartments) >= 2, "NAD turns over in more than one compartment"
     assert all(k.startswith("rNAD[") for k in compartments)
+
+
+# --- the loop-free screening cache -----------------------------------
+
+def test_the_loop_free_screening_round_trips(tmp_path):
+    """Screening every reaction for loop involvement is the dominant
+    cost of a sampling run and depends only on the network, so it is
+    kept rather than repeated."""
+    from overflow.run_sampling import load_good_reactions, save_good_reactions
+
+    assert load_good_reactions(tmp_path, "free") is None
+    save_good_reactions(tmp_path, "free", ["r_2", "r_1"])
+    assert load_good_reactions(tmp_path, "free") == ["r_1", "r_2"]
+    assert load_good_reactions(tmp_path, "full") is None
+
+
+def test_no_cache_directory_means_no_caching(tmp_path):
+    from overflow.run_sampling import load_good_reactions, save_good_reactions
+
+    save_good_reactions(None, "free", ["r_1"])
+    assert load_good_reactions(None, "free") is None
+    save_good_reactions(tmp_path, "free", [])
+    assert load_good_reactions(tmp_path, "free") is None

@@ -9,6 +9,7 @@ told, and one with every measured rate applied.
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from pathlib import Path
 from typing import Optional
@@ -34,18 +35,48 @@ from overflow.sampling import (
 DETECTION = 0.001
 
 
+def load_good_reactions(cache: Optional[Path], name: str) -> Optional[list[str]]:
+    """The cached loop-free reaction set, if one was kept."""
+    if cache is None:
+        return None
+    path = cache / f"goodReactions_{name}.json"
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text())
+
+
+def save_good_reactions(cache: Optional[Path], name: str, reactions: list[str]) -> None:
+    if cache is None or not reactions:
+        return
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / f"goodReactions_{name}.json").write_text(json.dumps(sorted(reactions)))
+
+
 def run(
     conditions: Optional[list[str]] = None,
     n_samples: int = 5000,
     seed: Optional[int] = 0,
     n_proc: Optional[int] = None,
+    cache: Optional[Path] = None,
+    replace_max_bound: bool = False,
     verbose: bool = True,
 ) -> dict[str, dict]:
-    """Sample each condition twice and summarise."""
+    """Sample each condition twice and summarise.
+
+    Which reactions are free of loops depends on the network and not on
+    the condition, so that screening is done once and reused; ``cache``
+    keeps it across runs, where it is otherwise the dominant cost.
+    """
     all_conditions = load_conditions()
     results: dict[str, dict] = {}
-    good_free: Optional[list[str]] = None
-    good_full: Optional[list[str]] = None
+    good_free = load_good_reactions(cache, "free")
+    good_full = load_good_reactions(cache, "full")
+    if verbose and (good_free or good_full):
+        print(
+            f"reusing cached loop-free sets: "
+            f"{len(good_free or [])} / {len(good_full or [])} reactions",
+            flush=True,
+        )
 
     for name in conditions or CONDITION_ORDER:
         condition = all_conditions[name]
@@ -59,16 +90,20 @@ def run(
         free, good_free = sample_condition(
             model.copy(), condition, n_samples=n_samples, include_formate=False,
             seed=seed, good_reactions=good_free, n_proc=n_proc,
+            replace_max_bound=replace_max_bound,
         )
         full, good_full = sample_condition(
             model, condition, n_samples=n_samples, include_formate=True,
             seed=seed, good_reactions=good_full, n_proc=n_proc,
+            replace_max_bound=replace_max_bound,
         )
 
         summary = selected_fluxes(
             model, full.means, gam=gam, growth_rate=condition.d_rate,
             polymerization=polymerization,
         )
+        save_good_reactions(cache, "free", good_free)
+        save_good_reactions(cache, "full", good_full)
         results[name] = {
             "free": free, "full": full, "summary": summary,
             "gam": gam, "model": model,
@@ -109,6 +144,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--samples", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--procs", type=int, default=None)
+    parser.add_argument(
+        "--cache", type=Path, default=None,
+        help="directory to keep the loop-free reaction screening in",
+    )
+    parser.add_argument(
+        "--replace-max-bound", action="store_true",
+        help="open the arbitrary 1000 bounds to infinity, as the published "
+             "analysis did; the sampler raises if a random objective then "
+             "turns out unbounded",
+    )
     parser.add_argument("--solver")
     args = parser.parse_args(argv)
 
@@ -117,7 +162,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         cobra.Configuration().solver = args.solver
 
-    results = run(args.conditions, n_samples=args.samples, seed=args.seed, n_proc=args.procs)
+    results = run(
+        args.conditions, n_samples=args.samples, seed=args.seed,
+        n_proc=args.procs, cache=args.cache,
+        replace_max_bound=args.replace_max_bound,
+    )
 
     out = args.results_dir / "randomSampling"
     out.mkdir(parents=True, exist_ok=True)

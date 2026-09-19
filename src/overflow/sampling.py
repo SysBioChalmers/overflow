@@ -185,12 +185,20 @@ def sample_condition(
     good_reactions: Optional[list[str]] = None,
     n_proc: Optional[int] = None,
     min_flux: Optional[bool] = None,
+    replace_max_bound: bool = False,
 ) -> tuple[SamplingResult, list[str]]:
     """Sample one condition, returning the summary and the good reactions.
 
     ``good_reactions`` is the loop-free set the sampler may use as random
     objectives; it depends only on the network, so it is computed once
     and handed back for reuse.
+
+    ``replace_max_bound`` opens the arbitrary 1000 bounds to infinity, as
+    the published analysis did, so that a reaction in a loop cannot sit
+    at 1000 and be mistaken for flux. It is off here: the screening that
+    picks the random objectives runs on the finite bounds, so once they
+    are opened an objective can turn out unbounded, and this sampler
+    raises on that where RAVEN's returned no solution and moved on.
     """
     apply_bounds(model, sampling_bounds(condition, tolerance, include_formate=include_formate))
     highest = constrain_maintenance(model)
@@ -200,7 +208,7 @@ def sample_condition(
         n_samples,
         method="random_objective",
         n_objectives=2,
-        replace_max_bound=True,
+        replace_max_bound=replace_max_bound,
         suppress_errors=True,
         good_reactions=good_reactions,
         min_flux=include_formate if min_flux is None else min_flux,
