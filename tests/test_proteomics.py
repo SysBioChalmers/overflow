@@ -186,14 +186,15 @@ def test_rescaling_is_a_molar_ratio(table):
 @pytest.mark.slow
 @pytest.mark.parametrize("condition", CONDITION_ORDER)
 def test_condition_prot_data_is_positive_milligrams(ec_model, table, masses, condition):
-    prot_data, f, p_tot, filtered = condition_prot_data(
-        load_conditions()[condition], ec_model.ec.enzymes, table=table, masses=masses
+    result = condition_prot_data(
+        load_conditions()[condition], ec_model, table=table, masses=masses,
+        fix_complex_subunits=False,
     )
-    assert (prot_data.abundances > 0).all()
-    assert len(prot_data.uniprot_ids) == filtered.n_kept
-    assert 0.3 < f < 0.6
-    assert 0.1 < p_tot < 1.0
-    in_model = set(prot_data.uniprot_ids) & set(ec_model.ec.enzymes)
+    assert (result.prot_data.abundances > 0).all()
+    assert len(result.prot_data.uniprot_ids) == result.filtered.n_kept
+    assert 0.3 < result.f_factor < 0.6
+    assert 0.1 < result.p_tot < 1.0
+    in_model = set(result.prot_data.uniprot_ids) & set(ec_model.ec.enzymes)
     assert len(in_model) > 500
 
 

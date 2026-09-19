@@ -229,20 +229,36 @@ def rescaled_p_tot(
     return condition.p_tot * (kept / total)
 
 
+@dataclass(frozen=True)
+class ConditionProteomics:
+    """Everything the model build needs from one condition's proteomics."""
+
+    prot_data: "ProtData"
+    f_factor: float
+    p_tot: float
+    filtered: FilteredProteomics
+    complex_fix: object = None
+
+
 def condition_prot_data(
     condition: Condition,
-    enzymes: list[str],
+    model,
     table: Optional[pd.DataFrame] = None,
     masses: Optional[dict[str, float]] = None,
     flex_factor: float = 1.96,
-) -> tuple["ProtData", float, float, FilteredProteomics]:
-    """Everything the model build needs from the proteomics of one condition.
+    fix_complex_subunits: bool = True,
+) -> ConditionProteomics:
+    """Assemble the proteomics for one condition.
 
-    Returns the filtered abundances as a geckopy ``ProtData`` in mg/gDW,
-    the f-factor, the rescaled total protein content, and the filter
-    result itself for reporting.
+    The f-factor and the protein-content rescaling come from the
+    unfiltered replicate means, as they describe the proteome as a
+    whole. The abundances that constrain enzymes come from the filtered
+    set, optionally after levelling the respiratory complexes.
     """
     from geckopy.databases import ProtData
+
+    from overflow.complexes import fix_complexes
+    from overflow.config import OXPHOS_RXNS
 
     if table is None:
         table = read_proteomics()
@@ -250,14 +266,25 @@ def condition_prot_data(
         masses = molecular_masses()
 
     ids, means = mean_abundances(table, condition)
-    f = f_factor(enzymes, ids, to_mass(ids, means, masses))
+    f = f_factor(model.ec.enzymes, ids, to_mass(ids, means, masses))
 
-    _, data = replicate_matrix(table, condition)
-    filtered = filter_prot_data(ids, data, flex_factor=flex_factor)
+    _, replicates = replicate_matrix(table, condition)
+    filtered = filter_prot_data(ids, replicates, flex_factor=flex_factor)
     p_tot = rescaled_p_tot(condition, means, filtered)
 
-    prot_data = ProtData(
-        uniprot_ids=list(filtered.uniprot_ids),
-        abundances=to_mass(filtered.uniprot_ids, filtered.abundances, masses),
+    kept_ids, kept_values = list(filtered.uniprot_ids), filtered.abundances
+    complex_fix = None
+    if fix_complex_subunits:
+        complex_fix = fix_complexes(model, OXPHOS_RXNS, kept_ids, kept_values)
+        kept_ids, kept_values = complex_fix.uniprot_ids, complex_fix.abundances
+
+    return ConditionProteomics(
+        prot_data=ProtData(
+            uniprot_ids=list(kept_ids),
+            abundances=to_mass(kept_ids, kept_values, masses),
+        ),
+        f_factor=f,
+        p_tot=p_tot,
+        filtered=filtered,
+        complex_fix=complex_fix,
     )
-    return prot_data, f, p_tot, filtered

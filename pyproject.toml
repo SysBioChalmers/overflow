@@ -26,8 +26,10 @@ packages = ["src/overflow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 markers = [
     "slow: tests that load a genome-scale model or solve many LPs",
     "solver: tests that need a working LP solver",
+    "integration: full condition builds; minutes each",
 ]
 filterwarnings = ["ignore::DeprecationWarning"]
