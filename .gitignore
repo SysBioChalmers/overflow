@@ -45,3 +45,17 @@ scrap/
 code/GECKO
 code/ecModels
 code/yeast-GEM
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+
+# Solver
+gurobi.env
+gurobi.log
