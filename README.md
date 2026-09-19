@@ -1,10 +1,67 @@
 [![Zenodo DOI](https://zenodo.org/badge/288161152.svg)](https://zenodo.org/badge/latestdoi/288161152)
 
+# overflow
 
-## Instructions
-The `code` folder contains a number of scripts to reconstruct the models and replicate the analysis. Note that the user should have [RAVEN 2.4.0](https://github.com/SysBioChalmers/RAVEN/releases) or later installed.
+Proteome-constrained enzyme-constrained model analysis of overflow metabolism
+in *Saccharomyces cerevisiae*, across four carbon/nitrogen ratios and one
+high growth rate condition.
 
-- `prepareEnvironment.m`: run this script to prepare MATLAB for model reconstruction and analysis. This includes (1) cloning the correct GECKO version; (2) if required cloning yeast-GEM and reconstructing ecYeast-GEM 8.1.3 [also already distributed with this repository]; (3) load all measured flux and proteomics data; (4) set parameters for GECKO.
-- `generateProtModels.m`: generate the five condition specific proteome-constrained ec-models, and store these in the models subdirectory. In `results/modelGeneration` is written which enzyme abundances were flexibilized to allow growth at the measured dilution rate. The models are constrained for glucose uptake, growth rate is set to dilution rate and the objective function is set to minimization of the unmeasured protein pool usage. Results from this FBA is written to `results/modelSimulation`.
-- `ribosome.m`: add ribosomal subunits to the ec-models. In `results/modelGeneration` is plotted the average abundances of the ribosomal subunits, to identify the "core" ribosome to be included in the model. Also written in this subdirectory is which subunit abundances were flexibilized to allow growth at the measured dilution rate.
-- `analyzeUsage.m`: run same FBA as in `generateProtModels` and summarize the enzyme usages in `results/enzymeUsage`, where the capacity and absolute usages are stored separately, together with a summary for each subsystem.
+The analysis is built on the GECKO 4 `ecYeastGEM` and runs in Python through
+[geckopy](https://github.com/SysBioChalmers/geckopy) and
+[raven-toolbox](https://github.com/SysBioChalmers/RAVEN). The MATLAB
+implementation that produced the published results, which used GECKO 2, is
+kept in [`legacy_matlab/`](legacy_matlab/).
+
+## Installation
+
+```bash
+pip install -e ".[dev]"
+```
+
+Python 3.11 or later. A linear programming solver is required; the analysis
+scripts are developed against Gurobi, and the test suite runs on the GLPK
+solver that ships with cobrapy.
+
+## Layout
+
+| Path | Contents |
+|---|---|
+| `data/` | Measured proteomics, fermentation rates, ribosome subunits, annotation |
+| `models/` | The GECKO 4 ecModel and the conventional GEM it derives from, see [`models/PROVENANCE.md`](models/PROVENANCE.md) |
+| `src/overflow/` | The analysis package |
+| `tests/` | Test suite |
+| `results/` | Output tables and figures |
+| `legacy_matlab/` | The GECKO 2 MATLAB implementation and its results |
+
+## Experimental data
+
+`data/fermentationData.txt` holds, per condition, the total protein content,
+the dilution rate and the measured exchange rates. `data/abs_proteomics.txt`
+holds absolute protein abundances in mmol/gDW: three biological replicates
+per condition, four for hGR.
+
+```python
+from overflow import load_conditions
+
+conditions = load_conditions()
+conditions["CN4"].d_rate          # 0.1
+conditions["CN4"].byproduct_bounds()   # undetected byproducts are blocked
+```
+
+## Model
+
+```python
+from overflow import build_adapter, load_model
+
+model = load_model(build_adapter(conditions["CN4"]))
+```
+
+`build_adapter` reads `model_adapter.toml` and layers the condition's measured
+protein content and dilution rate on top.
+
+## Tests
+
+```bash
+pytest                  # everything
+pytest -m "not slow"    # skip the tests that load a genome-scale model
+```
