@@ -59,6 +59,20 @@ model = load_model(build_adapter(conditions["CN4"]))
 `build_adapter` reads `model_adapter.toml` and layers the condition's measured
 protein content and dilution rate on top.
 
+## Building the condition models
+
+```bash
+python -m overflow.build                 # every condition
+python -m overflow.build CN4 --solver glpk
+```
+
+Each condition gets `models/ecModel_P_<cond>.yml` and, in `results/`, the
+enzymes whose measured abundance the model could not run on, the enzymes whose
+caps had to be released, and the full flux distribution. `--scale-protein`
+rescales biomass to the measured protein content; it is off by default because
+the model has no carbon to spare at the measured glucose uptake, and CN4 then
+falls 0.12% short of its dilution rate.
+
 ## Tests
 
 ```bash
