@@ -262,6 +262,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--models-dir", type=Path, default=MODELS_DIR)
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument("--ngam-steps", type=int, default=100)
+    parser.add_argument(
+        "--solver",
+        help="LP solver to use, e.g. gurobi or glpk (default: cobrapy's)",
+    )
     parser.add_argument("--no-complex-fix", action="store_true")
     parser.add_argument("--gam", choices=("model", "polymerization"), default="model")
     parser.add_argument(
@@ -274,6 +278,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+
+    if args.solver:
+        import cobra
+
+        cobra.Configuration().solver = args.solver
 
     conditions = load_conditions()
     table = read_proteomics()
