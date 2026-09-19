@@ -100,6 +100,16 @@ ribosomal subunits, at 10.5 amino acids per second per ribosome. The core is
 the 48 subunits whose average abundance across all conditions reaches
 1e-5 mmol/gDW.
 
+## Summarising enzyme usage
+
+```bash
+python -m overflow.analyze_usage
+```
+
+Writes, per enzyme and condition, how much of it the model uses and what
+fraction of what was available that is, plus the capacity usage of the
+annotated systems and the two figures over them.
+
 ## Tests
 
 ```bash
