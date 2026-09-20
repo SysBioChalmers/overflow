@@ -199,6 +199,11 @@ def sample_condition(
     picks the random objectives runs on the finite bounds, so once they
     are opened an objective can turn out unbounded, and this sampler
     raises on that where RAVEN's returned no solution and moved on.
+
+    ``min_flux`` minimises total flux within each draw. The published
+    second pass did this to suppress loops; here one awkward draw in
+    several thousand raises out of the parsimonious solve and takes the
+    whole run with it, so it is off unless asked for.
     """
     apply_bounds(model, sampling_bounds(condition, tolerance, include_formate=include_formate))
     highest = constrain_maintenance(model)

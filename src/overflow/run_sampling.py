@@ -59,6 +59,7 @@ def run(
     n_proc: Optional[int] = None,
     cache: Optional[Path] = None,
     replace_max_bound: bool = False,
+    min_flux: bool = False,
     verbose: bool = True,
 ) -> dict[str, dict]:
     """Sample each condition twice and summarise.
@@ -90,12 +91,12 @@ def run(
         free, good_free = sample_condition(
             model.copy(), condition, n_samples=n_samples, include_formate=False,
             seed=seed, good_reactions=good_free, n_proc=n_proc,
-            replace_max_bound=replace_max_bound,
+            replace_max_bound=replace_max_bound, min_flux=min_flux,
         )
         full, good_full = sample_condition(
             model, condition, n_samples=n_samples, include_formate=True,
             seed=seed, good_reactions=good_full, n_proc=n_proc,
-            replace_max_bound=replace_max_bound,
+            replace_max_bound=replace_max_bound, min_flux=min_flux,
         )
 
         summary = selected_fluxes(
@@ -154,6 +155,11 @@ def main(argv: Optional[list[str]] = None) -> int:
              "analysis did; the sampler raises if a random objective then "
              "turns out unbounded",
     )
+    parser.add_argument(
+        "--min-flux", action="store_true",
+        help="minimise total flux within each draw, as the published second "
+             "pass did; one numerically awkward draw then aborts the run",
+    )
     parser.add_argument("--solver")
     args = parser.parse_args(argv)
 
@@ -172,7 +178,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     results = run(
         args.conditions, n_samples=args.samples, seed=args.seed,
         n_proc=args.procs, cache=args.cache,
-        replace_max_bound=args.replace_max_bound,
+        replace_max_bound=args.replace_max_bound, min_flux=args.min_flux,
     )
 
     out = args.results_dir / "randomSampling"
