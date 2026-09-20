@@ -29,6 +29,7 @@ from overflow.sampling import (
     polymerization_breakdown,
     prepare_model,
     sample_condition,
+    use_fork_start_method,
 )
 
 #: Mean flux above which a byproduct counts as predicted [mmol/gDW/h].
@@ -60,6 +61,7 @@ def run(
     cache: Optional[Path] = None,
     replace_max_bound: bool = False,
     min_flux: bool = False,
+    loopless: bool = True,
     verbose: bool = True,
 ) -> dict[str, dict]:
     """Sample each condition twice and summarise.
@@ -92,11 +94,13 @@ def run(
             model.copy(), condition, n_samples=n_samples, include_formate=False,
             seed=seed, good_reactions=good_free, n_proc=n_proc,
             replace_max_bound=replace_max_bound, min_flux=min_flux,
+            loopless=loopless,
         )
         full, good_full = sample_condition(
             model, condition, n_samples=n_samples, include_formate=True,
             seed=seed, good_reactions=good_full, n_proc=n_proc,
             replace_max_bound=replace_max_bound, min_flux=min_flux,
+            loopless=loopless,
         )
 
         summary = selected_fluxes(
@@ -113,6 +117,7 @@ def run(
             print(
                 f"[{name}] {full.n_samples} samples, GAM {gam:.2f}, "
                 f"maintenance up to {full.max_maintenance:.2f}; "
+                f"{full.loopless_tightened} reactions held to their loop-free range; "
                 f"growth {full.means.get(BIO_RXN, float('nan')):.5f} "
                 f"[{time.time() - started:.0f}s]",
                 flush=True,
@@ -160,8 +165,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="minimise total flux within each draw, as the published second "
              "pass did; one numerically awkward draw then aborts the run",
     )
+    parser.add_argument(
+        "--keep-loops", action="store_true",
+        help="do not tighten reactions to their loop-free range first",
+    )
     parser.add_argument("--solver")
     args = parser.parse_args(argv)
+
+    if args.procs:
+        use_fork_start_method()
 
     if args.solver or args.procs:
         import cobra
@@ -179,6 +191,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         args.conditions, n_samples=args.samples, seed=args.seed,
         n_proc=args.procs, cache=args.cache,
         replace_max_bound=args.replace_max_bound, min_flux=args.min_flux,
+        loopless=not args.keep_loops,
     )
 
     out = args.results_dir / "randomSampling"

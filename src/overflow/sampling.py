@@ -49,6 +49,27 @@ FORMATE_DEHYDROGENASE = "r_0445"
 FORMATE_EXCHANGE = "r_1793"
 
 
+def use_fork_start_method() -> None:
+    """Have multiprocessing fork rather than use a forkserver.
+
+    Python 3.14 made forkserver the default on Linux. Its helper process
+    does not survive in every environment -- on this cluster it dies and
+    takes the run with it, as a broken pipe or a reset connection partway
+    through sampling. Fork is what cobrapy's process pool was written
+    against and works here.
+    """
+    import multiprocessing
+
+    if "fork" not in multiprocessing.get_all_start_methods():
+        return
+    if multiprocessing.get_start_method(allow_none=True) == "fork":
+        return
+    try:
+        multiprocessing.set_start_method("fork", force=True)
+    except RuntimeError:  # already started a pool; nothing to do
+        pass
+
+
 def measured_rate(condition: Condition, field_name: str) -> float:
     """One measured rate, as a positive magnitude."""
     if field_name == "D":
@@ -150,6 +171,48 @@ def polymerization_breakdown(model: "cobra.Model", gam_base: float = GAM_NO_POLY
     return costs
 
 
+def loopless_bounds(model: "cobra.Model", processes: Optional[int] = None) -> pd.DataFrame:
+    """Flux range of every reaction that does not need a closed cycle.
+
+    Ordinary variability analysis lets a reaction in a thermodynamically
+    infeasible cycle run to whatever arbitrary bound the model carries;
+    the loop-free range is what the reaction can do while the rest of
+    the network stays consistent.
+    """
+    from cobra.flux_analysis import flux_variability_analysis
+
+    if processes is not None:
+        import cobra
+
+        cobra.Configuration().processes = processes
+    return flux_variability_analysis(
+        model, fraction_of_optimum=0.0, loopless="cycleFreeFlux"
+    )
+
+
+def apply_loopless_bounds(
+    model: "cobra.Model", ranges: pd.DataFrame, tolerance: float = 1e-9
+) -> int:
+    """Tighten every reaction to its loop-free range.
+
+    Every flux distribution free of closed cycles already lies inside
+    these bounds, so nothing thermodynamically sensible is excluded --
+    what goes is the room a cycle needs to inflate a flux. Returns how
+    many reactions were tightened.
+    """
+    tightened = 0
+    for reaction_id, row in ranges.iterrows():
+        reaction = model.reactions.get_by_id(reaction_id)
+        low = max(reaction.lower_bound, float(row["minimum"]) - tolerance)
+        high = min(reaction.upper_bound, float(row["maximum"]) + tolerance)
+        if low > high:  # numerical crossing; leave the reaction alone
+            continue
+        if low > reaction.lower_bound or high < reaction.upper_bound:
+            reaction.bounds = (low, high)
+            tightened += 1
+    return tightened
+
+
 @dataclass
 class SamplingResult:
     """Sampled fluxes for one condition and one formate setting."""
@@ -161,6 +224,7 @@ class SamplingResult:
     sd: np.ndarray = field(default_factory=lambda: np.empty(0))
     n_samples: int = 0
     max_maintenance: float = 0.0
+    loopless_tightened: int = 0
 
     def to_frame(self) -> pd.DataFrame:
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -186,6 +250,7 @@ def sample_condition(
     n_proc: Optional[int] = None,
     min_flux: Optional[bool] = None,
     replace_max_bound: bool = False,
+    loopless: bool = True,
 ) -> tuple[SamplingResult, list[str]]:
     """Sample one condition, returning the summary and the good reactions.
 
@@ -208,6 +273,13 @@ def sample_condition(
     apply_bounds(model, sampling_bounds(condition, tolerance, include_formate=include_formate))
     highest = constrain_maintenance(model)
 
+    # Without this the malate dehydrogenases cycle against each other at
+    # several hundred mmol/gDW/h, which is the arbitrary 1000 bound
+    # showing through rather than anything the cell does.
+    tightened = 0
+    if loopless:
+        tightened = apply_loopless_bounds(model, loopless_bounds(model, n_proc))
+
     sampled = random_sampling(
         model,
         n_samples,
@@ -229,6 +301,7 @@ def sample_condition(
         sd=samples.std(axis=0, ddof=1).to_numpy(),
         n_samples=len(samples),
         max_maintenance=highest,
+        loopless_tightened=tightened,
     )
     returned = sampled.good_reactions
     return result, list(returned) if returned is not None else (good_reactions or [])

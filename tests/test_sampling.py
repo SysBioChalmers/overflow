@@ -177,3 +177,64 @@ def test_no_cache_directory_means_no_caching(tmp_path):
     assert load_good_reactions(None, "free") is None
     save_good_reactions(tmp_path, "free", [])
     assert load_good_reactions(tmp_path, "free") is None
+
+
+# --- holding reactions to their loop-free range ----------------------
+
+def test_loopless_bounds_tighten_only_what_a_cycle_inflates():
+    """A reaction whose ordinary range reaches the model's arbitrary
+    bound, but whose loop-free range is a few units, is held to the
+    latter; a reaction already inside its loop-free range is left be."""
+    import cobra
+    import pandas as pd
+
+    from overflow.sampling import apply_loopless_bounds
+
+    model = cobra.Model("m")
+    a = cobra.Reaction("a", lower_bound=-1000.0, upper_bound=1000.0)
+    b = cobra.Reaction("b", lower_bound=0.0, upper_bound=3.0)
+    model.add_reactions([a, b])
+
+    ranges = pd.DataFrame(
+        {"minimum": [-2.079, 0.0], "maximum": [2.908, 5.0]}, index=["a", "b"]
+    )
+    tightened = apply_loopless_bounds(model, ranges)
+
+    assert tightened == 1
+    assert a.lower_bound == pytest.approx(-2.079, abs=1e-6)
+    assert a.upper_bound == pytest.approx(2.908, abs=1e-6)
+    assert b.bounds == (0.0, 3.0), "already inside its loop-free range"
+
+
+def test_loopless_bounds_never_widen_a_reaction():
+    """The loop-free range of a reaction can exceed a bound the
+    condition imposes; the condition wins."""
+    import cobra
+    import pandas as pd
+
+    from overflow.sampling import apply_loopless_bounds
+
+    model = cobra.Model("m")
+    r = cobra.Reaction("r", lower_bound=-1.0, upper_bound=1.0)
+    model.add_reactions([r])
+    apply_loopless_bounds(
+        model, pd.DataFrame({"minimum": [-50.0], "maximum": [50.0]}, index=["r"])
+    )
+    assert r.bounds == (-1.0, 1.0)
+
+
+def test_a_crossed_range_leaves_the_reaction_alone():
+    """Numerical noise can put a loop-free minimum above its maximum;
+    that must not produce an infeasible reaction."""
+    import cobra
+    import pandas as pd
+
+    from overflow.sampling import apply_loopless_bounds
+
+    model = cobra.Model("m")
+    r = cobra.Reaction("r", lower_bound=0.0, upper_bound=1.0)
+    model.add_reactions([r])
+    apply_loopless_bounds(
+        model, pd.DataFrame({"minimum": [5.0], "maximum": [2.0]}, index=["r"])
+    )
+    assert r.bounds == (0.0, 1.0)
