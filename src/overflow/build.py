@@ -37,6 +37,7 @@ from overflow.config import (
 from overflow.constraints import (
     InfeasibleCondition,
     constrain_byproducts,
+    constrain_measured_rates,
     constrain_uptake,
     free_ngam,
     set_chemostat_constraints,
@@ -44,9 +45,11 @@ from overflow.constraints import (
 from overflow.flexibilize import (
     FlexibilizationResult,
     MinimumUsageResult,
+    RateFitResult,
     apply_concentrations,
     flexibilize_proteins,
     minimum_usage_pass,
+    relax_to_measured_rates,
     write_back_concentrations,
 )
 from overflow.ngam import NgamFit, fit_ngam
@@ -73,6 +76,7 @@ class BuildResult:
     n_kept: int = 0
     minimum_usage: Optional[MinimumUsageResult] = None
     flexibilization: Optional[FlexibilizationResult] = None
+    rate_fit: Optional[RateFitResult] = None
     ngam: Optional[NgamFit] = None
     fluxes: Optional[pd.Series] = None
     growth: float = 0.0
@@ -93,6 +97,8 @@ def build_condition(
     ngam_steps: int = 100,
     gam: str = "model",
     scale_protein: bool = False,
+    fit_rates: bool = False,
+    rate_tolerance: float = 0.05,
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -102,6 +108,13 @@ def build_condition(
     spare at the measured glucose uptake, so raising biomass protein
     puts the higher-protein conditions below their dilution rate. The
     measured protein content still sets the protein pool either way.
+
+    ``fit_rates`` additionally holds CO2, oxygen and the byproducts
+    within ``rate_tolerance`` of their measurements and raises the
+    measured abundances by the least that makes that feasible. Without
+    it the gas rates are free, and the model disposes of surplus carbon
+    through whatever exit is cheapest in protein rather than respiring
+    it.
     """
     started = time.time()
     if table is None:
@@ -147,6 +160,15 @@ def build_condition(
     apply_concentrations(model, result.minimum_usage.concentrations)
 
     result.flexibilization = flexibilize_proteins(model, condition.d_rate)
+    if fit_rates and result.flexibilization.reached_target:
+        constrain_measured_rates(model, condition, tolerance=rate_tolerance)
+        result.rate_fit = relax_to_measured_rates(model, condition.d_rate)
+        if not result.rate_fit.feasible:
+            raise InfeasibleCondition(
+                f"{condition.name}: no amount of enzyme relaxation reproduces the "
+                f"measured rates within {rate_tolerance:.0%} "
+                f"({result.rate_fit.status}). The limit is not the proteome."
+            )
     if not result.flexibilization.reached_target:
         raise InfeasibleCondition(
             f"{condition.name}: the model reaches "
@@ -158,9 +180,19 @@ def build_condition(
             "cost before flexibilizing further."
         )
 
-    set_chemostat_constraints(model, condition)
-    result.ngam = fit_ngam(model, condition, steps=ngam_steps)
-    result.glucose = set_chemostat_constraints(model, condition, glucose=condition.glucose)
+    if fit_rates:
+        # The measured rates are already the constraint; re-minimising
+        # uptake would only pull the model back off them.
+        model.objective = {model.reactions.get_by_id(POOL_RXN): -1.0}
+        model.objective.direction = "max"
+        result.ngam = fit_ngam(model, condition, steps=ngam_steps)
+        result.glucose = -float(model.optimize().fluxes[C_SOURCE])
+    else:
+        set_chemostat_constraints(model, condition)
+        result.ngam = fit_ngam(model, condition, steps=ngam_steps)
+        result.glucose = set_chemostat_constraints(
+            model, condition, glucose=condition.glucose
+        )
 
     solution = model.optimize()
     if solution.status != "optimal":
@@ -191,7 +223,10 @@ def report(result: BuildResult) -> None:
         f"{len(result.minimum_usage.raised)} raised to their minimum usage\n"
         f"  flexibilized {len(flex.released)} enzymes, pool grown "
         f"{flex.pool_increases}x ({flex.pool_before:.1f}->{flex.pool_after:.1f})\n"
-        f"  NGAM={result.ngam.value:.3f} (error {result.ngam.error:.4f})"
+        + (f"  relaxed {len(result.rate_fit.proteins)} abundances to fit the "
+           f"measured rates, adding {result.rate_fit.added_mg:.2f} mg/gDW\n"
+           if result.rate_fit else "")
+        + f"  NGAM={result.ngam.value:.3f} (error {result.ngam.error:.4f})"
         f"{' AT SCAN EDGE' if result.ngam.at_upper_bound else ''}\n"
         f"  growth={result.growth:.5f} (D={result.d_rate}) "
         f"glucose={result.glucose:.4f}  [{result.seconds:.0f}s]"
@@ -213,6 +248,10 @@ def write_outputs(result: BuildResult, models_dir: Path, results_dir: Path) -> N
     result.flexibilization.table().to_csv(
         generation / f"modifiedEnzymes_{result.condition}.tsv", sep="\t", index=False
     )
+    if result.rate_fit is not None:
+        result.rate_fit.table().to_csv(
+            generation / f"relaxedEnzymes_{result.condition}.tsv", sep="\t", index=False
+        )
 
     model = result.model
     fluxes = result.fluxes
@@ -244,6 +283,8 @@ def summary_table(results: list[BuildResult]) -> pd.DataFrame:
                 "raised_to_minimum": len(result.minimum_usage.raised),
                 "flexibilized": len(result.flexibilization.released),
                 "pool_increases": result.flexibilization.pool_increases,
+                "rates_relaxed": len(result.rate_fit.proteins) if result.rate_fit else 0,
+                "rates_added_mg": round(result.rate_fit.added_mg, 2) if result.rate_fit else 0.0,
                 "NGAM": round(result.ngam.value, 3),
                 "NGAM_error": round(result.ngam.error, 4),
                 "growth": round(result.growth, 5),
@@ -268,6 +309,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--no-complex-fix", action="store_true")
     parser.add_argument("--gam", choices=("model", "polymerization"), default="model")
+    parser.add_argument(
+        "--fit-rates", action="store_true",
+        help="hold CO2, oxygen and the byproducts at their measurements and "
+             "raise abundances by the least that makes that feasible",
+    )
+    parser.add_argument("--rate-tolerance", type=float, default=0.05)
     parser.add_argument(
         "--scale-protein",
         action="store_true",
@@ -298,6 +345,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             ngam_steps=args.ngam_steps,
             gam=args.gam,
             scale_protein=args.scale_protein,
+            fit_rates=args.fit_rates,
+            rate_tolerance=args.rate_tolerance,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)

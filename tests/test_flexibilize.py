@@ -198,3 +198,95 @@ def test_a_stalled_search_gives_up_instead_of_inflating_the_pool(model, monkeypa
     )
     assert not result.reached_target
     assert result.pool_increases <= 7
+
+
+# --- relaxing abundances until the measured rates fit ----------------
+
+def test_the_least_relaxation_that_meets_the_target_is_found(model):
+    """Ten units of flux cost 10 mg on E1 or 5 mg on E2, and the pool
+    holds 75. Measured at 5 mg each the model reaches 1.5. The cheapest
+    way to reach 10 spends E1's existing 5 mg on half a unit of flux and
+    asks E2 for the remaining 9.5, which needs 47.5 mg of it: the
+    measurements are used before they are departed from."""
+    from overflow.flexibilize import relax_to_measured_rates
+
+    _set_concentrations(model, E1=5.0, E2=5.0)
+    apply_concentrations(model, model.ec.concs)
+    assert model.optimize().objective_value == pytest.approx(1.5)
+
+    result = relax_to_measured_rates(model, target_growth=10.0, bio_rxn="BIO")
+    assert result.feasible
+    assert result.proteins == ["E2"]
+    assert result.relaxed[0] == pytest.approx(47.5)
+    assert result.added_mg == pytest.approx(42.5)
+    assert model.optimize().objective_value == pytest.approx(10.0)
+
+
+def test_relaxation_writes_the_new_abundances_into_the_model(model):
+    from overflow.flexibilize import relax_to_measured_rates
+
+    _set_concentrations(model, E1=5.0, E2=5.0)
+    apply_concentrations(model, model.ec.concs)
+    relax_to_measured_rates(model, target_growth=10.0, bio_rxn="BIO")
+
+    assert model.ec.concs[model.ec.enzymes.index("E2")] == pytest.approx(47.5)
+    assert model.reactions.get_by_id("usage_prot_E2").upper_bound == pytest.approx(47.5)
+    assert model.reactions.get_by_id("usage_prot_E1").upper_bound == pytest.approx(5.0)
+
+
+def test_an_abundance_that_already_suffices_is_left_alone(model):
+    from overflow.flexibilize import relax_to_measured_rates
+
+    _set_concentrations(model, E1=100.0, E2=100.0)
+    apply_concentrations(model, model.ec.concs)
+    result = relax_to_measured_rates(model, target_growth=10.0, bio_rxn="BIO")
+    assert result.feasible
+    assert result.proteins == []
+    assert result.added_mg == 0.0
+
+
+def test_a_target_no_relaxation_can_reach_is_reported(model):
+    """Supply caps this one, so no amount of enzyme helps and the fit
+    has to say so rather than return an arbitrary set of increases."""
+    from overflow.flexibilize import relax_to_measured_rates
+
+    small = tiny_ec_model(pool=1000.0, supply=1.0)
+    _set_concentrations(small, E1=1.0, E2=1.0)
+    apply_concentrations(small, small.ec.concs)
+    result = relax_to_measured_rates(small, target_growth=10.0, bio_rxn="BIO")
+    assert not result.feasible
+    assert result.status != "optimal"
+
+
+def test_relative_weighting_does_not_give_away_the_smallest_measurements(model):
+    """Minimising milligrams relaxes whichever enzyme is cheapest in
+    absolute terms, which is usually the one measured at almost nothing.
+    Minimising fold-change spreads the departure over the measurements
+    in proportion to what was actually measured."""
+    from overflow.flexibilize import relax_to_measured_rates
+
+    _set_concentrations(model, E1=0.01, E2=20.0)
+    apply_concentrations(model, model.ec.concs)
+    relative = relax_to_measured_rates(
+        model, target_growth=10.0, bio_rxn="BIO", weight="relative"
+    )
+
+    other = tiny_ec_model(pool=75.0, supply=10.0)
+    _set_concentrations(other, E1=0.01, E2=20.0)
+    apply_concentrations(other, other.ec.concs)
+    absolute = relax_to_measured_rates(
+        other, target_growth=10.0, bio_rxn="BIO", weight="absolute"
+    )
+
+    assert relative.feasible and absolute.feasible
+    fold_relative = max(relative.table()["fold_change"], default=1.0)
+    fold_absolute = max(absolute.table()["fold_change"], default=1.0)
+    assert fold_relative <= fold_absolute
+
+
+def test_an_unknown_weighting_is_rejected(model):
+    from overflow.flexibilize import relax_to_measured_rates
+
+    _set_concentrations(model, E1=5.0, E2=5.0)
+    with pytest.raises(ValueError, match="weight"):
+        relax_to_measured_rates(model, target_growth=10.0, bio_rxn="BIO", weight="guess")

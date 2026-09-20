@@ -12,7 +12,15 @@ from typing import TYPE_CHECKING, Optional
 
 import cobra
 
-from overflow.config import BIO_RXN, C_SOURCE, NGAM_RXN, POOL_RXN, Condition
+from overflow.config import (
+    BIO_RXN,
+    C_SOURCE,
+    CO2_RXN,
+    NGAM_RXN,
+    O2_RXN,
+    POOL_RXN,
+    Condition,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from geckopy import EcModel
@@ -91,3 +99,38 @@ def set_chemostat_constraints(
         model.objective = {model.reactions.get_by_id(POOL_RXN): -1.0}
         model.objective.direction = "max"
     return uptake
+
+
+def constrain_measured_rates(
+    model: cobra.Model,
+    condition: Condition,
+    tolerance: float = 0.05,
+    minimum_secretion: float = 0.01,
+) -> dict[str, tuple[float, float]]:
+    """Hold every measured rate inside a band around its measurement.
+
+    The pipeline otherwise constrains only uptake, growth and the
+    byproducts, leaving the model free to dispose of carbon however is
+    cheapest in protein. Banding the gas rates as well makes the
+    measurements something the model has to account for rather than
+    something it is merely allowed to approach.
+    """
+    from overflow.config import BYPRODUCT_RXNS
+
+    bounds: dict[str, tuple[float, float]] = {}
+    bounds[C_SOURCE] = (-(1 + tolerance) * condition.glucose,
+                        -(1 - tolerance) * condition.glucose)
+    bounds[CO2_RXN] = ((1 - tolerance) * condition.co2,
+                       (1 + tolerance) * condition.co2)
+    bounds[O2_RXN] = (-(1 + tolerance) * condition.oxygen,
+                      -(1 - tolerance) * condition.oxygen)
+    for name, reaction_id in BYPRODUCT_RXNS.items():
+        value = condition.byproducts[name]
+        if value == 0:
+            bounds[reaction_id] = (0.0, minimum_secretion)
+        else:
+            bounds[reaction_id] = ((1 - tolerance) * value, (1 + tolerance) * value)
+
+    for reaction_id, (low, high) in bounds.items():
+        model.reactions.get_by_id(reaction_id).bounds = (low, high)
+    return bounds

@@ -311,3 +311,114 @@ def apply_concentrations(model: "EcModel", concentrations: np.ndarray) -> None:
     """Write concentrations into the model and its enzyme caps."""
     model.ec.concs = np.asarray(concentrations, dtype=float)
     constrain_enz_concs(model)
+
+
+@dataclass
+class RateFitResult:
+    """Outcome of relaxing abundances until the measured rates fit."""
+
+    proteins: list[str] = field(default_factory=list)
+    measured: list[float] = field(default_factory=list)
+    relaxed: list[float] = field(default_factory=list)
+    added_mg: float = 0.0
+    feasible: bool = False
+    status: str = ""
+
+    def table(self) -> pd.DataFrame:
+        measured = np.asarray(self.measured, dtype=float)
+        relaxed = np.asarray(self.relaxed, dtype=float)
+        return pd.DataFrame(
+            {
+                "protein": self.proteins,
+                "measured_mg_gDW": measured,
+                "relaxed_mg_gDW": relaxed,
+                "added_mg_gDW": relaxed - measured,
+                "fold_change": np.divide(
+                    relaxed, measured, out=np.full_like(relaxed, np.inf),
+                    where=measured > 0,
+                ),
+            }
+        )
+
+
+def relax_to_measured_rates(
+    model: "EcModel",
+    target_growth: float,
+    weight: str = "relative",
+    bio_rxn: str = BIO_RXN,
+    floor: float = 1e-9,
+) -> RateFitResult:
+    """Raise measured abundances by the least that fits the measured rates.
+
+    The model is expected to carry its rate constraints already. Each
+    measured enzyme's cap becomes ``usage <= measured + slack``, and the
+    slacks are minimised, so the answer is the smallest departure from
+    the proteomics that accounts for the rates rather than one enzyme's
+    cap released outright.
+
+    ``weight`` decides what "smallest" means: ``"relative"`` minimises
+    the sum of fold-increases, so an enzyme measured at almost nothing
+    is not relaxed freely just because its absolute cost is small;
+    ``"absolute"`` minimises the milligrams added.
+    """
+    from optlang.symbolics import add
+
+    if weight not in ("relative", "absolute"):
+        raise ValueError(f"unknown weight {weight!r}")
+
+    biomass = model.reactions.get_by_id(bio_rxn)
+    biomass.bounds = (target_growth, biomass.upper_bound or 1000.0)
+
+    # The slack objective is this function's own business; the caller's
+    # objective has to survive it, or the model comes back optimising
+    # an expression whose variables have just been removed.
+    previous_objective = model.objective.expression
+    previous_direction = model.objective.direction
+
+    indices = measured_enzymes(model)
+    slacks, added = {}, []
+    for index in indices:
+        enzyme = model.ec.enzymes[index]
+        reaction = model.reactions.get_by_id(f"{USAGE_PREFIX}{enzyme}")
+        concentration = float(model.ec.concs[index])
+        reaction.upper_bound = FREE
+        slack = model.problem.Variable(f"relax_{enzyme}", lb=0.0, ub=FREE)
+        constraint = model.problem.Constraint(
+            reaction.flux_expression - slack, ub=concentration, name=f"cap_{enzyme}"
+        )
+        slacks[enzyme] = (slack, concentration)
+        added.extend([slack, constraint])
+    model.add_cons_vars(added)
+
+    try:
+        model.objective = model.problem.Objective(
+            add([
+                (1.0 / max(concentration, floor) if weight == "relative" else 1.0) * slack
+                for slack, concentration in slacks.values()
+            ]),
+            direction="min",
+        )
+        solution = model.optimize()
+        result = RateFitResult(status=solution.status)
+        result.feasible = solution.status == "optimal"
+        if result.feasible:
+            values = model.solver.primal_values
+            concentrations = np.asarray(model.ec.concs, dtype=float).copy()
+            for enzyme, (slack, concentration) in slacks.items():
+                raised = concentration + float(values.get(slack.name, 0.0))
+                if raised > concentration * (1 + 1e-9) + 1e-12:
+                    result.proteins.append(enzyme)
+                    result.measured.append(concentration)
+                    result.relaxed.append(raised)
+                    result.added_mg += raised - concentration
+                concentrations[model.ec.enzymes.index(enzyme)] = raised
+            model.ec.concs = concentrations
+    finally:
+        model.remove_cons_vars(added)
+        model.objective = model.problem.Objective(
+            previous_objective, direction=previous_direction
+        )
+
+    if result.feasible:
+        constrain_enz_concs(model)
+    return result
