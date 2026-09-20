@@ -157,10 +157,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--solver")
     args = parser.parse_args(argv)
 
-    if args.solver:
+    if args.solver or args.procs:
         import cobra
 
-        cobra.Configuration().solver = args.solver
+        if args.solver:
+            cobra.Configuration().solver = args.solver
+        if args.procs:
+            # The loop-free screening is a flux variability analysis, which
+            # reads its process count from here rather than from the
+            # sampler's argument. Left unset it runs on one core and
+            # dominates the run.
+            cobra.Configuration().processes = args.procs
 
     results = run(
         args.conditions, n_samples=args.samples, seed=args.seed,
