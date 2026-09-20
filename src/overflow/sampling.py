@@ -190,6 +190,21 @@ def loopless_bounds(model: "cobra.Model", processes: Optional[int] = None) -> pd
     )
 
 
+def good_reactions_from(ranges: pd.DataFrame, tolerance: float = 1e-9) -> list[str]:
+    """Reactions that can carry flux without a closed cycle.
+
+    These are the ones worth using as random objectives; a reaction that
+    only moves inside a cycle gives a degenerate solve every time it is
+    picked, and the sampler retries up to a hundred times before giving
+    up on that draw.
+    """
+    return [
+        reaction_id
+        for reaction_id, row in ranges.iterrows()
+        if max(abs(float(row["minimum"])), abs(float(row["maximum"]))) > tolerance
+    ]
+
+
 def apply_loopless_bounds(
     model: "cobra.Model", ranges: pd.DataFrame, tolerance: float = 1e-9
 ) -> int:
@@ -278,7 +293,13 @@ def sample_condition(
     # showing through rather than anything the cell does.
     tightened = 0
     if loopless:
-        tightened = apply_loopless_bounds(model, loopless_bounds(model, n_proc))
+        # One loop-free variability analysis gives both the bounds and
+        # the objective set, and the objective set has to come from this
+        # condition: a reaction that moves freely in one condition can be
+        # pinned in another, and picking it then wastes a whole draw.
+        ranges = loopless_bounds(model, n_proc)
+        tightened = apply_loopless_bounds(model, ranges)
+        good_reactions = good_reactions_from(ranges)
 
     sampled = random_sampling(
         model,

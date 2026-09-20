@@ -72,8 +72,10 @@ def run(
     """
     all_conditions = load_conditions()
     results: dict[str, dict] = {}
-    good_free = load_good_reactions(cache, "free")
-    good_full = load_good_reactions(cache, "full")
+    # With loop-free bounding the objective set is derived per condition
+    # from that condition's own analysis, so a cached one would be ignored.
+    good_free = None if loopless else load_good_reactions(cache, "free")
+    good_full = None if loopless else load_good_reactions(cache, "full")
     if verbose and (good_free or good_full):
         print(
             f"reusing cached loop-free sets: "
@@ -107,8 +109,9 @@ def run(
             model, full.means, gam=gam, growth_rate=condition.d_rate,
             polymerization=polymerization,
         )
-        save_good_reactions(cache, "free", good_free)
-        save_good_reactions(cache, "full", good_full)
+        if not loopless:
+            save_good_reactions(cache, "free", good_free)
+            save_good_reactions(cache, "full", good_full)
         results[name] = {
             "free": free, "full": full, "summary": summary,
             "gam": gam, "model": model,
