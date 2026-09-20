@@ -93,3 +93,24 @@ def test_the_report_names_what_it_compares(results_dir):
     assert "Mean residual" in text
     for condition in CONDITION_ORDER:
         assert condition in text
+
+
+def test_the_sampled_budget_is_compared_when_a_run_is_present(results_dir):
+    """The ATP budget lines up only if both files are read with the same
+    row names; a mismatch would silently produce an empty table."""
+    import shutil
+
+    from overflow.compare import BUDGET_ROWS, budget_comparison
+
+    sampling = results_dir / "randomSampling"
+    sampling.mkdir(exist_ok=True)
+    legacy = pd.read_csv(LEGACY / "randomSampling" / "selectedFluxes.txt", sep="\t")
+    legacy.to_csv(sampling / "selectedFluxes.tsv", sep="\t", index=False)
+
+    table = budget_comparison(results_dir)
+    assert set(table["row"]) == set(BUDGET_ROWS)
+    for condition in CONDITION_ORDER:
+        assert table[f"{condition}_gecko2"].to_numpy() == pytest.approx(
+            table[f"{condition}_gecko4"].to_numpy()
+        )
+    shutil.rmtree(sampling)

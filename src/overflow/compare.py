@@ -104,6 +104,34 @@ def usage_comparison(results_dir: Path = RESULTS_DIR) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+#: Rows of the sampling summary worth putting side by side.
+BUDGET_ROWS = (
+    "rGlu", "ETC_rATP", "glycolysis_rATP", "GAEC_rATP", "NGAM_rATP",
+    "GAEC+NGAM+Metabolism_rATP", "rPDH", "rIDH", "rMDHc", "rMDHm", "rNDE",
+)
+
+
+def budget_comparison(results_dir: Path = RESULTS_DIR) -> pd.DataFrame:
+    """The sampled ATP and redox budget, side by side."""
+    legacy = pd.read_csv(
+        LEGACY / "randomSampling" / "selectedFluxes.txt", sep="\t"
+    ).set_index("Row")
+    new = pd.read_csv(
+        results_dir / "randomSampling" / "selectedFluxes.tsv", sep="\t"
+    ).set_index("Row")
+
+    rows = []
+    for name in BUDGET_ROWS:
+        if name not in legacy.index or name not in new.index:
+            continue
+        row: dict[str, object] = {"row": name}
+        for condition in CONDITION_ORDER:
+            row[f"{condition}_gecko2"] = float(legacy.loc[name, condition])
+            row[f"{condition}_gecko4"] = float(new.loc[name, condition])
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def report(results_dir: Path = RESULTS_DIR) -> str:
     """A written comparison of the two implementations."""
     exchanges = exchange_comparison(results_dir)
@@ -155,6 +183,27 @@ def report(results_dir: Path = RESULTS_DIR) -> str:
             new = getattr(row, f"{condition}_gecko4")
             values.append(f"{old:.1f} / {new:.1f}")
         lines.append(f"| {row.system} | " + " | ".join(values) + " |")
+    lines.append("")
+
+    try:
+        budget = budget_comparison(results_dir)
+    except FileNotFoundError:
+        return "\n".join(lines)
+
+    lines += [
+        "## Sampled ATP and redox budget",
+        "",
+        "mmol/gDW/h, GECKO 2 / GECKO 4.",
+        "",
+        "| | " + " | ".join(CONDITION_ORDER) + " |",
+        "|---" * (len(CONDITION_ORDER) + 1) + "|",
+    ]
+    for row in budget.itertuples(index=False):
+        values = [
+            f"{getattr(row, f'{c}_gecko2'):.3g} / {getattr(row, f'{c}_gecko4'):.3g}"
+            for c in CONDITION_ORDER
+        ]
+        lines.append(f"| {row.row} | " + " | ".join(values) + " |")
     lines.append("")
     return "\n".join(lines)
 
