@@ -127,6 +127,16 @@ means rather than an average over the interior of the flux space. `--no-min-flux
 skips the second step, which lets the sampler wander into high-flux routes: the
 pentose phosphate pathway then carries several times the published flux.
 
+## Comparing against the published results
+
+```bash
+python -m overflow.compare
+```
+
+Writes `results/COMPARISON.md`: predicted exchange rates and median capacity
+usage per system, this pipeline beside the MATLAB one, read from
+`legacy_matlab/results/`.
+
 ## Tests
 
 ```bash
