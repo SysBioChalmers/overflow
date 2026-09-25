@@ -54,3 +54,20 @@ def test_the_summary_reports_the_condition(built):
     table = summary_table([built])
     assert list(table["condition"]) == ["CN4"]
     assert table.loc[0, "growth"] >= 0.099
+
+
+@pytest.fixture(scope="module")
+def built_without_the_leak(conditions):
+    return build_condition(
+        conditions["CN22"], ngam_steps=5, fit_rates=True, rate_tolerance=0.08,
+        uptake_flex=1.08, block=["r_2129"], verbose=False,
+    )
+
+
+def test_a_blocked_leak_carries_no_flux_and_respiration_stays_coupled(built_without_the_leak):
+    fluxes = built_without_the_leak.fluxes
+    assert fluxes["r_2129"] == pytest.approx(0.0, abs=1e-9)
+    atp_synthase = fluxes["r_0226"] - fluxes.get("r_0226_REV", 0.0)
+    oxygen = -fluxes["r_1992"]
+    assert atp_synthase / (2 * oxygen) > 0.9
+    assert built_without_the_leak.growth == pytest.approx(0.1, rel=0.01)

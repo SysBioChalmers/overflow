@@ -85,6 +85,13 @@ Options change what the models are asked to account for:
   pool (`protein`, the default), or the smallest total flux at the dilution rate
   over every reaction (`flux`) or over the metabolic reactions only
   (`metabolic-flux`). The flux objectives need `--fit-rates`.
+- `--block RXN ...` closes the named reactions before anything else is applied. The
+  analysis blocks `r_2129`, the proton leak: it has no enzyme and no bound, so it is a
+  free sink for oxygen. Fitting the measured oxygen with it open sent most of the
+  respiration through it at high C/N (P/O 0.19 at CN75, against 1.1-1.2 with it closed),
+  because the fit raises each cap only as far as the rates need and the built models
+  can carry no maintenance ATP. Closed, the respiration is coupled and the maintenance
+  shows up as non-growth ATP use.
 - `--scale-protein` rescales biomass to the measured protein content. Off by
   default: the model has no carbon to spare at the measured glucose uptake, and
   CN4 then falls short of its dilution rate.
@@ -158,10 +165,11 @@ measurements and raises the measured enzyme abundances by the least that makes
 that feasible. Without it those rates are free, and on the earlier tutorial model
 the enzyme-constrained solution disposed of surplus carbon through unmeasured
 exits instead of respiring it, so the flux distribution did not describe the
-measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs.
+measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs, and `--block r_2129` closes the
+proton leak (see the build options).
 
 ```bash
-python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08
+python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08 --block r_2129
 python -m overflow.build_ribosome
 python -m overflow.analyze_usage
 python -m overflow.run_sampling --procs 12

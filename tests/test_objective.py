@@ -2,6 +2,7 @@ import pytest
 
 from overflow.build import OBJECTIVES, build_condition, metabolic_reactions
 from overflow.config import POOL_RXN
+from overflow.constraints import block_reactions
 from routes import two_route_model
 from tiny import tiny_ec_model
 
@@ -43,3 +44,15 @@ def test_parsimony_over_a_subset_ignores_the_others_but_returns_every_flux():
     assert subset.fluxes["usage_prot_E"] == pytest.approx(10.0)
     assert set(subset.fluxes.index) == {r.id for r in model.reactions}
 
+
+def test_a_blocked_reaction_stays_shut_on_a_small_model():
+    model = two_route_model()
+    block_reactions(model, ["direct"])
+    assert model.reactions.direct.bounds == (0.0, 0.0)
+    assert model.slim_optimize() == pytest.approx(1.0)
+    assert model.optimize().fluxes["step1"] == pytest.approx(1.0)
+
+
+def test_blocking_an_unknown_reaction_is_refused_on_a_small_model():
+    with pytest.raises(KeyError, match="cannot block r_missing"):
+        block_reactions(two_route_model(), ["r_missing"])

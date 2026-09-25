@@ -45,6 +45,19 @@ def constrain_uptake(model: cobra.Model, condition: Condition, flex: float = 1.0
     model.reactions.get_by_id(C_SOURCE).bounds = (-flex * condition.glucose, 0.0)
 
 
+def block_reactions(model: cobra.Model, reaction_ids) -> None:
+    """Set the bounds of each named reaction to zero.
+
+    An unknown ID is an error rather than a reaction that quietly stays open.
+    """
+    for reaction_id in reaction_ids:
+        try:
+            reaction = model.reactions.get_by_id(reaction_id)
+        except KeyError:
+            raise KeyError(f"cannot block {reaction_id}: the model has no such reaction") from None
+        reaction.bounds = (0.0, 0.0)
+
+
 def free_ngam(model: cobra.Model, lower: float = 0.0) -> None:
     """Release the maintenance reaction so it can be fitted.
 
