@@ -12,6 +12,7 @@ from typing import Optional
 import pandas as pd
 from geckopy import load_ec_model
 
+from overflow.solver import HELP, use_solver
 from overflow.adapter import build_adapter
 from overflow.config import (
     BIO_RXN,
@@ -71,13 +72,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument("--suffix", default="_ribosome",
                         help="model file suffix, '' for the models without a ribosome")
-    parser.add_argument("--solver")
+    parser.add_argument("--solver", help=HELP)
     args = parser.parse_args(argv)
 
-    if args.solver:
-        import cobra
-
-        cobra.Configuration().solver = args.solver
+    use_solver(args.solver)
 
     tables = analyse(args.conditions, args.models_dir, args.suffix)
     usage = combine_usage(tables)

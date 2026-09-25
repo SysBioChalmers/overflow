@@ -6,6 +6,9 @@ from overflow.config import (
     Condition,
     load_conditions,
 )
+from overflow.solver import use_solver
+
+use_solver()
 
 __all__ = [
     "CONDITION_ORDER",
@@ -15,4 +18,5 @@ __all__ = [
     "load_conditions",
     "load_gem",
     "load_model",
+    "use_solver",
 ]

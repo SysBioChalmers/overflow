@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from geckopy import load_ec_model, save_ec_model
 
+from overflow.solver import HELP, use_solver
 from overflow.adapter import build_adapter
 from overflow.config import (
     BIO_RXN,
@@ -160,14 +161,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
     parser.add_argument(
         "--solver",
-        help="LP solver to use, e.g. gurobi or glpk (default: cobrapy's)",
+        help=HELP,
     )
     args = parser.parse_args(argv)
 
-    if args.solver:
-        import cobra
-
-        cobra.Configuration().solver = args.solver
+    use_solver(args.solver)
 
     conditions = load_conditions()
     table = read_proteomics()

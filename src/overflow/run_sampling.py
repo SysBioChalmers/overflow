@@ -16,6 +16,7 @@ from typing import Optional
 
 import pandas as pd
 
+from overflow.solver import HELP, use_solver
 from overflow.adapter import load_gem
 from overflow.atp import selected_fluxes
 from overflow.biomass import GAM_NO_POLYMERIZATION, current_gam
@@ -172,23 +173,21 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--keep-loops", action="store_true",
         help="do not tighten reactions to their loop-free range first",
     )
-    parser.add_argument("--solver")
+    parser.add_argument("--solver", help=HELP)
     args = parser.parse_args(argv)
 
     if args.procs:
         use_fork_start_method()
 
-    if args.solver or args.procs:
+    use_solver(args.solver)
+    if args.procs:
         import cobra
 
-        if args.solver:
-            cobra.Configuration().solver = args.solver
-        if args.procs:
-            # The loop-free screening is a flux variability analysis, which
-            # reads its process count from here rather than from the
-            # sampler's argument. Left unset it runs on one core and
-            # dominates the run.
-            cobra.Configuration().processes = args.procs
+        # The loop-free screening is a flux variability analysis, which
+        # reads its process count from here rather than from the
+        # sampler's argument. Left unset it runs on one core and
+        # dominates the run.
+        cobra.Configuration().processes = args.procs
 
     results = run(
         args.conditions, n_samples=args.samples, seed=args.seed,
