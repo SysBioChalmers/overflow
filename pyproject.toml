@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "overflow"
+version = "2.0.0.dev0"
+description = "Proteome-constrained ecModel analysis of overflow metabolism in Saccharomyces cerevisiae"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE.md" }
+dependencies = [
+    "geckopy==4.0.0b1",
+    "raven-toolbox==3.0.0b1",
+    "cobra>=0.29,<0.33",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/overflow"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: tests that load a genome-scale model or solve many LPs",
+    "solver: tests that need a working LP solver",
+]
+filterwarnings = ["ignore::DeprecationWarning"]

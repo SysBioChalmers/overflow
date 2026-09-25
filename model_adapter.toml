@@ -1,0 +1,32 @@
+# geckopy adapter parameters for the overflow ecModels.
+#
+# Defaults describe the model as distributed; the per-condition values
+# (p_tot, gr_exp) are overridden at build time from data/fermentationData.txt.
+# sigma = 1 because the enzyme constraints come from measured abundances
+# rather than from an assumed average saturation.
+
+conv_gem = "models/yeast-GEM.yml"
+
+org_name = "saccharomyces cerevisiae"
+
+sigma = 1.0
+p_tot = 0.5
+f = 0.5
+gr_exp = 0.1
+
+c_source = "r_1714"
+bio_rxn = "r_4041"
+enzyme_comp = "cytoplasm"
+
+[kegg]
+id = "sce"
+gene_id = "kegg"
+
+[uniprot]
+type = "proteome"
+id = "UP000002311"
+gene_id_field = "gene_oln"
+reviewed = true
+
+[complex]
+taxonomic_id = 559292
