@@ -52,7 +52,7 @@ from overflow.flexibilize import (
     relax_to_measured_rates,
     write_back_concentrations,
 )
-from overflow.ngam import NgamFit, fit_ngam
+from overflow.ngam import NgamFit, fit_ngam, parsimonious_solution
 from overflow.proteomics import (
     condition_prot_data,
     molecular_masses,
@@ -99,6 +99,8 @@ def build_condition(
     scale_protein: bool = False,
     fit_rates: bool = False,
     rate_tolerance: float = 0.05,
+    uptake_flex: float = 1.05,
+    objective: str = "protein",
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -115,7 +117,16 @@ def build_condition(
     it the gas rates are free, and the model disposes of surplus carbon
     through whatever exit is cheapest in protein rather than respiring
     it.
+
+    ``objective`` chooses what the finished model optimises: the smallest
+    protein pool (``"protein"``), or the smallest total flux at the
+    dilution rate over every reaction (``"flux"``) or over the metabolic
+    reactions only (``"metabolic-flux"``); both need ``fit_rates``.
     """
+    if objective not in OBJECTIVES:
+        raise ValueError(f"objective must be one of {OBJECTIVES}, not {objective!r}")
+    if objective != "protein" and not fit_rates:
+        raise ValueError(f"the {objective} objective needs fit_rates")
     started = time.time()
     if table is None:
         table = read_proteomics()
@@ -152,7 +163,7 @@ def build_condition(
     )
 
     constrain_byproducts(model, condition)
-    constrain_uptake(model, condition)
+    constrain_uptake(model, condition, flex=uptake_flex)
 
     # The model carries no individual enzyme caps yet, so each minimum is
     # what the enzyme needs on its own rather than what the others leave it.
@@ -183,10 +194,24 @@ def build_condition(
     if fit_rates:
         # The measured rates are already the constraint; re-minimising
         # uptake would only pull the model back off them.
-        model.objective = {model.reactions.get_by_id(POOL_RXN): -1.0}
+        if objective != "protein":
+            growth = model.reactions.get_by_id(BIO_RXN)
+            growth.bounds = (0.99 * condition.d_rate, condition.d_rate)
+            model.objective = {growth: 1.0}
+        else:
+            model.objective = {model.reactions.get_by_id(POOL_RXN): -1.0}
         model.objective.direction = "max"
-        result.ngam = fit_ngam(model, condition, steps=ngam_steps)
-        result.glucose = -float(model.optimize().fluxes[C_SOURCE])
+        parsimony = metabolic_reactions(model) if objective == "metabolic-flux" else None
+        result.ngam = fit_ngam(
+            model, condition, steps=ngam_steps, parsimony_reactions=parsimony
+        )
+        result.glucose = -float(
+            (
+                model.optimize()
+                if objective == "protein"
+                else parsimonious_solution(model, parsimony)
+            ).fluxes[C_SOURCE]
+        )
     else:
         set_chemostat_constraints(model, condition)
         result.ngam = fit_ngam(model, condition, steps=ngam_steps)
@@ -194,7 +219,13 @@ def build_condition(
             model, condition, glucose=condition.glucose
         )
 
-    solution = model.optimize()
+    if objective == "protein":
+        solution = model.optimize()
+    else:
+        solution = parsimonious_solution(
+            model,
+            metabolic_reactions(model) if objective == "metabolic-flux" else None,
+        )
     if solution.status != "optimal":
         raise InfeasibleCondition(
             f"{condition.name}: the finished model has no solution "
@@ -210,6 +241,17 @@ def build_condition(
     if verbose:
         report(result)
     return result
+
+
+OBJECTIVES = ("protein", "flux", "metabolic-flux")
+
+
+def metabolic_reactions(model) -> list:
+    """The reactions that are not enzyme usage or the protein pool exchange."""
+    return [
+        r for r in model.reactions
+        if not r.id.startswith("usage_prot_") and r.id != POOL_RXN
+    ]
 
 
 def report(result: BuildResult) -> None:
@@ -316,6 +358,21 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--rate-tolerance", type=float, default=0.05)
     parser.add_argument(
+        "--objective",
+        choices=OBJECTIVES,
+        default="protein",
+        help=(
+            "minimise the protein pool, or total flux at the dilution rate over "
+            "all reactions or the metabolic ones only"
+        ),
+    )
+    parser.add_argument(
+        "--uptake-flex",
+        type=float,
+        default=1.05,
+        help="cap glucose uptake at this multiple of the measured rate",
+    )
+    parser.add_argument(
         "--scale-protein",
         action="store_true",
         help=(
@@ -347,6 +404,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             scale_protein=args.scale_protein,
             fit_rates=args.fit_rates,
             rate_tolerance=args.rate_tolerance,
+            uptake_flex=args.uptake_flex,
+            objective=args.objective,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)

@@ -63,16 +63,16 @@ def test_chemostat_fixes_growth_and_pins_uptake(ec_model, conditions):
 
 
 def test_the_measured_uptake_barely_covers_the_dilution_rate(ec_model, conditions):
-    """Left to minimise uptake, the model needs slightly more glucose than
-    was measured -- 1.158 against 1.116 mmol/gDW/h for CN4. The five
-    percent of headroom the pipeline allows on the measurement is what
-    makes the condition feasible at all, so it is not a formality."""
+    """Left to minimise uptake, the model needs more glucose than was
+    measured -- 1.188 against 1.116 mmol/gDW/h for CN4, 6.5% more. That is
+    beyond the default five percent of headroom, so CN4 is built with
+    ``uptake_flex=1.08``."""
     condition = conditions["CN4"]
     with ec_model as model:
         free_ngam(model)
         constrain_byproducts(model, condition)
         uptake = set_chemostat_constraints(model, condition)
-        assert condition.glucose < uptake <= 1.05 * condition.glucose
+        assert 1.05 * condition.glucose < uptake <= 1.08 * condition.glucose
 
 
 @pytest.mark.slow

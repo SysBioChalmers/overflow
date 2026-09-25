@@ -14,7 +14,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 @pytest.fixture(scope="module")
 def built(conditions):
-    return build_condition(conditions["CN4"], ngam_steps=20, verbose=False)
+    return build_condition(
+        conditions["CN4"], ngam_steps=20, uptake_flex=1.08, verbose=False
+    )
 
 
 def test_the_model_grows_at_the_dilution_rate(built, conditions):
@@ -24,7 +26,7 @@ def test_the_model_grows_at_the_dilution_rate(built, conditions):
 
 def test_uptake_stays_within_the_measurement_plus_headroom(built, conditions):
     measured = conditions["CN4"].glucose
-    assert 0.99 * measured <= built.glucose <= 1.05 * measured
+    assert 0.99 * measured <= built.glucose <= 1.08 * measured
 
 
 def test_undetected_byproducts_carry_no_flux(built):

@@ -7,11 +7,12 @@ producing biomass, and it shows up in the CO2 and oxygen rates.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from cobra.exceptions import OptimizationError
-from cobra.flux_analysis import pfba
+from cobra.util import solver as solver_util
+from optlang.symbolics import Zero
 
 from overflow.config import C_SOURCE, CO2_RXN, NGAM_RXN, O2_RXN, Condition
 
@@ -39,6 +40,29 @@ def relative_residual(predicted: np.ndarray, measured: np.ndarray) -> float:
     return float(np.sqrt(np.sum(((predicted - measured) / measured) ** 2)))
 
 
+def parsimonious_solution(model: "EcModel", reactions: Optional[list] = None):
+    """Minimise total flux at the current optimum, over ``reactions`` or all of them.
+
+    ``cobra.flux_analysis.pfba`` minimises every reaction whatever it is
+    asked to return; here only ``reactions`` enter the objective, and the
+    solution still carries every reaction's flux.
+    """
+    reactions = model.reactions if reactions is None else reactions
+    with model:
+        solver_util.fix_objective_as_constraint(model, fraction=1.0)
+        model.objective = model.problem.Objective(
+            Zero, direction="min", sloppy=True, name="_parsimony_objective"
+        )
+        model.objective.set_linear_coefficients(
+            {
+                variable: 1.0
+                for reaction in reactions
+                for variable in (reaction.forward_variable, reaction.reverse_variable)
+            }
+        )
+        return model.optimize()
+
+
 def fit_ngam(
     model: "EcModel",
     condition: Condition,
@@ -46,6 +70,7 @@ def fit_ngam(
     steps: int = 100,
     ngam_rxn: str = NGAM_RXN,
     targets: tuple[str, str, str] = (C_SOURCE, CO2_RXN, O2_RXN),
+    parsimony_reactions: Optional[list] = None,
 ) -> NgamFit:
     """Scan the maintenance requirement for the best fit to the gas rates.
 
@@ -68,7 +93,7 @@ def fit_ngam(
     for index, value in enumerate(scanned):
         reaction.lower_bound = value
         try:
-            solution = pfba(model)
+            solution = parsimonious_solution(model, parsimony_reactions)
         except OptimizationError:
             continue
         if solution.status != "optimal":
