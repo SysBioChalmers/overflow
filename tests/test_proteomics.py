@@ -11,6 +11,7 @@ import pytest
 from overflow.config import CONDITION_ORDER, ROOT, load_conditions
 from overflow.proteomics import (
     condition_prot_data,
+    drop_proteins,
     f_factor,
     filter_prot_data,
     mean_abundances,
@@ -210,3 +211,26 @@ def test_f_factor_agrees_with_geckopy(ec_model, table, masses):
     ours = f_factor(ec_model.ec.enzymes, ids, mass)
     theirs = calculate_f_factor(ec_model, ProtData(uniprot_ids=ids, abundances=mass))
     assert ours == pytest.approx(theirs, rel=1e-12)
+
+
+def test_dropping_proteins_keeps_the_others_and_their_values():
+    ids, values = drop_proteins(["A", "B", "C"], np.array([1.0, 2.0, 3.0]), ["B", "Z"])
+    assert ids == ["A", "C"]
+    assert list(values) == [1.0, 3.0]
+
+
+def test_nothing_is_dropped_by_default():
+    ids, values = drop_proteins(["A", "B"], np.array([1.0, 2.0]), ())
+    assert ids == ["A", "B"] and list(values) == [1.0, 2.0]
+
+
+@pytest.mark.slow
+def test_an_unmeasured_enzyme_is_left_out_of_the_abundances(ec_model, table, masses):
+    condition = load_conditions()["CN38"]
+    kwargs = dict(table=table, masses=masses, fix_complex_subunits=False)
+    with_rki1 = condition_prot_data(condition, ec_model, **kwargs)
+    without = condition_prot_data(condition, ec_model, unmeasured=["Q12189"], **kwargs)
+    assert "Q12189" in with_rki1.prot_data.uniprot_ids
+    assert "Q12189" not in without.prot_data.uniprot_ids
+    assert len(without.prot_data.uniprot_ids) == len(with_rki1.prot_data.uniprot_ids) - 1
+    assert without.f_factor == with_rki1.f_factor and without.p_tot == with_rki1.p_tot

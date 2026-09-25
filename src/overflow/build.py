@@ -13,7 +13,7 @@ import argparse
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -101,6 +101,7 @@ def build_condition(
     rate_tolerance: float = 0.05,
     uptake_flex: float = 1.05,
     objective: str = "protein",
+    unmeasured: Sequence[str] = (),
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -122,6 +123,9 @@ def build_condition(
     protein pool (``"protein"``), or the smallest total flux at the
     dilution rate over every reaction (``"flux"``) or over the metabolic
     reactions only (``"metabolic-flux"``); both need ``fit_rates``.
+
+    ``unmeasured`` lists UniProt IDs whose measurements are not used as
+    caps, so those enzymes draw on the shared protein pool.
     """
     if objective not in OBJECTIVES:
         raise ValueError(f"objective must be one of {OBJECTIVES}, not {objective!r}")
@@ -150,7 +154,7 @@ def build_condition(
 
     proteomics = condition_prot_data(
         condition, model, table=table, masses=masses,
-        fix_complex_subunits=fix_complex_subunits,
+        fix_complex_subunits=fix_complex_subunits, unmeasured=unmeasured,
     )
     result.f_factor = proteomics.f_factor
     result.n_kept = proteomics.filtered.n_kept
@@ -358,6 +362,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--rate-tolerance", type=float, default=0.05)
     parser.add_argument(
+        "--unmeasured",
+        nargs="+",
+        default=[],
+        metavar="UNIPROT",
+        help="treat these enzymes as unmeasured: they are not capped at their "
+             "measured abundance and draw on the shared protein pool",
+    )
+    parser.add_argument(
         "--objective",
         choices=OBJECTIVES,
         default="protein",
@@ -405,7 +417,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             fit_rates=args.fit_rates,
             rate_tolerance=args.rate_tolerance,
             uptake_flex=args.uptake_flex,
-            objective=args.objective,
+            objective=args.objective, unmeasured=args.unmeasured,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)

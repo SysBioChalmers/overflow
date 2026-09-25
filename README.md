@@ -84,6 +84,8 @@ Options change what the models are asked to account for:
   pool (`protein`, the default), or the smallest total flux at the dilution rate
   over every reaction (`flux`) or over the metabolic reactions only
   (`metabolic-flux`). The flux objectives need `--fit-rates`.
+- `--unmeasured UNIPROT ...` treats those enzymes as unmeasured: they are not capped at
+  their measured abundance and draw on the shared protein pool. Default: none.
 - `--scale-protein` rescales biomass to the measured protein content. Off by
   default: the model has no carbon to spare at the measured glucose uptake, and
   CN4 then falls short of its dilution rate.
@@ -147,8 +149,16 @@ the enzyme-constrained solution disposed of surplus carbon through unmeasured
 exits instead of respiring it, so the flux distribution did not describe the
 measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs.
 
+`--unmeasured Q12189 P38858` releases RKI1 and SOL3, the enzymes that cap the
+pentose phosphate pathway. RKI1 is measured at about 0.01 mg/gDW at CN38, and the
+model already needs all of it for nucleotide precursors, so the pathway carries no
+flux however it is asked to be used; SOL3 is the next cap. Released, they draw on the
+shared pool, the protein pool does not grow, and the pathway carries flux at every
+condition. Drop the option to build strictly from the measured abundances.
+
 ```bash
-python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08
+python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08 \
+    --unmeasured Q12189 P38858
 python -m overflow.build_ribosome
 python -m overflow.analyze_usage
 python -m overflow.run_sampling --procs 12

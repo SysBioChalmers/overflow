@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -229,6 +229,13 @@ def rescaled_p_tot(
     return condition.p_tot * (kept / total)
 
 
+def drop_proteins(ids, values, drop: Sequence[str]):
+    """``ids`` and ``values`` without the proteins in ``drop``."""
+    drop = set(drop)
+    keep = [i for i, protein in enumerate(ids) if protein not in drop]
+    return [ids[i] for i in keep], np.asarray(values)[keep]
+
+
 @dataclass(frozen=True)
 class ConditionProteomics:
     """Everything the model build needs from one condition's proteomics."""
@@ -247,6 +254,7 @@ def condition_prot_data(
     masses: Optional[dict[str, float]] = None,
     flex_factor: float = 1.96,
     fix_complex_subunits: bool = True,
+    unmeasured: Sequence[str] = (),
 ) -> ConditionProteomics:
     """Assemble the proteomics for one condition.
 
@@ -254,6 +262,10 @@ def condition_prot_data(
     unfiltered replicate means, as they describe the proteome as a
     whole. The abundances that constrain enzymes come from the filtered
     set, optionally after levelling the respiratory complexes.
+
+    Proteins in ``unmeasured`` are left out of the abundances, so the model
+    treats them as unmeasured: they draw on the shared protein pool instead
+    of being capped at a measurement that is too low to carry their flux.
     """
     from geckopy.databases import ProtData
 
@@ -277,6 +289,7 @@ def condition_prot_data(
     if fix_complex_subunits:
         complex_fix = fix_complexes(model, OXPHOS_RXNS, kept_ids, kept_values)
         kept_ids, kept_values = complex_fix.uniprot_ids, complex_fix.abundances
+    kept_ids, kept_values = drop_proteins(kept_ids, kept_values, unmeasured)
 
     return ConditionProteomics(
         prot_data=ProtData(
