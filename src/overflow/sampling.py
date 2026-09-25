@@ -210,7 +210,7 @@ def loopless_bounds(
     processes: Optional[int] = None,
     seed: int = 0,
     attempts: int = 4,
-    seconds: float = 900.0,
+    seconds: float = 300.0,
 ) -> pd.DataFrame:
     """Flux range of every reaction that does not need a closed cycle.
 

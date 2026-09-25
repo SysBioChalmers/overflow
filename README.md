@@ -128,6 +128,18 @@ means rather than an average over the interior of the flux space. `--no-min-flux
 skips the second step, which lets the sampler wander into high-flux routes: the
 pentose phosphate pathway then carries several times the published flux.
 
+Conditions are independent, so they can be sampled as separate runs (for example one
+Slurm job each) and combined afterwards:
+
+```bash
+python -m overflow.run_sampling CN4 --procs 12 --results-dir runs/CN4   # one per condition
+python -m overflow.run_sampling --merge runs/CN4 runs/CN22 runs/CN38 runs/CN75 runs/hGR
+```
+
+The loop-free screening that precedes sampling has a five-minute limit and retries
+with a new seed, because cobra's search for cyclic reactions occasionally runs for
+hours.
+
 ## Comparing against the published results
 
 ```bash

@@ -5,6 +5,9 @@ set, which asks the model which byproducts it would make if it were not
 told, and one with every measured rate applied.
 
 ``python -m overflow.run_sampling``.
+
+Conditions are independent, so they can be sampled as separate runs, each into
+its own results directory, and combined afterwards with ``--merge``.
 """
 from __future__ import annotations
 
@@ -147,6 +150,40 @@ def alternative_exchanges(results: dict[str, dict], model, threshold: float = DE
     return pd.DataFrame(rows).sort_values("rxnID")
 
 
+TABLES = ("allFluxes", "selectedFluxes", "altExchangeFlux")
+
+
+def merge_sampling(sources: list[Path], destination: Path) -> None:
+    """Combine the tables of separate per-condition runs into one set.
+
+    Every source is a results directory holding ``randomSampling/``. In
+    ``altExchangeFlux`` a reaction is listed only where a condition secretes
+    it above the detection threshold, so a condition that does not is left
+    empty for that row.
+    """
+    def read(source: Path, table: str) -> pd.DataFrame:
+        return pd.read_csv(Path(source) / "randomSampling" / f"{table}.tsv", sep="\t")
+
+    fluxes = read(sources[0], "allFluxes")
+    summary = read(sources[0], "selectedFluxes")
+    alternative = read(sources[0], "altExchangeFlux")
+    for source in sources[1:]:
+        part = read(source, "allFluxes")
+        if list(part["rxnID"]) != list(fluxes["rxnID"]):
+            raise ValueError(f"{source} was sampled on a different set of reactions")
+        fluxes = fluxes.merge(part.drop(columns="rxnName"), on="rxnID")
+        summary = summary.merge(read(source, "selectedFluxes"), on="Row")
+        alternative = alternative.merge(
+            read(source, "altExchangeFlux").drop(columns="rxnName"), on="rxnID", how="outer"
+        )
+
+    out = Path(destination) / "randomSampling"
+    out.mkdir(parents=True, exist_ok=True)
+    fluxes.to_csv(out / "allFluxes.tsv", sep="\t", index=False)
+    summary.to_csv(out / "selectedFluxes.tsv", sep="\t", index=False)
+    alternative.sort_values("rxnID").to_csv(out / "altExchangeFlux.tsv", sep="\t", index=False)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conditions", nargs="*", default=list(CONDITION_ORDER))
@@ -174,7 +211,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="do not tighten reactions to their loop-free range first",
     )
     parser.add_argument("--solver", help=HELP)
+    parser.add_argument(
+        "--merge", nargs="+", type=Path, metavar="RESULTS_DIR",
+        help="do not sample: combine the randomSampling tables of these "
+             "per-condition runs into --results-dir",
+    )
     args = parser.parse_args(argv)
+
+    if args.merge:
+        merge_sampling(args.merge, args.results_dir)
+        return 0
 
     if args.procs:
         use_fork_start_method()
