@@ -2,6 +2,7 @@ import pytest
 
 from overflow.config import BIO_RXN, BYPRODUCT_RXNS, C_SOURCE, NGAM_RXN, POOL_RXN
 from overflow.constraints import (
+    block_reactions,
     constrain_byproducts,
     constrain_uptake,
     free_ngam,
@@ -96,3 +97,16 @@ def test_the_chemostat_objective_survives_being_written_and_read(ec_model, condi
     after = reloaded.optimize().fluxes[POOL_RXN]
     assert after == pytest.approx(before, rel=1e-4)  # YAML rounds the bounds
     assert after < reloaded.reactions.get_by_id(POOL_RXN).upper_bound
+
+
+def test_blocked_reactions_carry_no_flux(ec_model):
+    with ec_model as model:
+        target = next(r for r in model.reactions if not r.id.startswith(("usage_prot_", "prot_")))
+        block_reactions(model, [target.id])
+        assert target.bounds == (0.0, 0.0)
+
+
+def test_blocking_an_unknown_reaction_is_an_error(ec_model):
+    with ec_model as model:
+        with pytest.raises(KeyError, match="no such reaction"):
+            block_reactions(model, ["r_9999999"])

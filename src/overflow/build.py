@@ -13,7 +13,7 @@ import argparse
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -39,6 +39,7 @@ from overflow.constraints import (
     InfeasibleCondition,
     constrain_byproducts,
     constrain_measured_rates,
+    block_reactions,
     constrain_uptake,
     free_ngam,
     set_chemostat_constraints,
@@ -102,6 +103,7 @@ def build_condition(
     rate_tolerance: float = 0.05,
     uptake_flex: float = 1.05,
     objective: str = "protein",
+    block: Sequence[str] = (),
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -123,6 +125,8 @@ def build_condition(
     protein pool (``"protein"``), or the smallest total flux at the
     dilution rate over every reaction (``"flux"``) or over the metabolic
     reactions only (``"metabolic-flux"``); both need ``fit_rates``.
+
+    ``block`` lists reactions to close before anything else is applied.
     """
     if objective not in OBJECTIVES:
         raise ValueError(f"objective must be one of {OBJECTIVES}, not {objective!r}")
@@ -142,6 +146,7 @@ def build_condition(
 
     model = load_model(build_adapter(condition))
     free_ngam(model)
+    block_reactions(model, block)
 
     # Biomass is rescaled to the protein content as measured, not to the
     # value the proteomics coverage implies.
@@ -359,6 +364,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--rate-tolerance", type=float, default=0.05)
     parser.add_argument(
+        "--block", nargs="+", default=[], metavar="RXN",
+        help="reaction IDs to close before the model is built, e.g. r_2129 (the "
+             "proton leak)",
+    )
+    parser.add_argument(
         "--objective",
         choices=OBJECTIVES,
         default="protein",
@@ -403,7 +413,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             fit_rates=args.fit_rates,
             rate_tolerance=args.rate_tolerance,
             uptake_flex=args.uptake_flex,
-            objective=args.objective,
+            objective=args.objective, block=args.block,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)
