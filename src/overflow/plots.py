@@ -1,4 +1,4 @@
-"""Figures summarising enzyme capacity usage.
+"""Figures summarising enzyme capacity usage and the ribosomal subunit abundances.
 
 Each panel is one pathway and each box one condition, so a pathway that
 tightens as the carbon-to-nitrogen ratio falls shows up as boxes walking
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 import matplotlib
+import numpy as np
 import pandas as pd
 
 matplotlib.use("Agg")
@@ -101,6 +102,66 @@ def capacity_usage_figure(
             axis.set_ylabel("Capacity usage (%)", fontsize=8, color=INK)
 
     axes[0].set_ylim(-4, 104)
+
+    if path is not None:
+        figure.savefig(path, facecolor=SURFACE)
+        plt.close(figure)
+    return figure
+
+
+def subunit_density(
+    log_abundance: Sequence[float], bandwidth: float = 0.1, points: int = 100
+):
+    """Gaussian kernel density of log10 abundances on a grid.
+
+    The grid runs three bandwidths past the data on each side and the
+    kernel bandwidth is absolute, in log10 units, as in the published
+    analysis.
+    """
+    values = np.asarray(log_abundance, float)
+    grid = np.linspace(values.min() - 3 * bandwidth, values.max() + 3 * bandwidth, points)
+    scaled = (grid[:, None] - values[None, :]) / bandwidth
+    density = np.exp(-0.5 * scaled**2).sum(axis=1) / (len(values) * bandwidth * np.sqrt(2 * np.pi))
+    return grid, density
+
+
+def subunit_abundance_figure(
+    means: pd.Series,
+    threshold: float,
+    path: Optional[Path | str] = None,
+    width: float = 3.6,
+    height: float = 2.6,
+):
+    """Distribution of the average abundance of the candidate ribosomal subunits.
+
+    A dashed line marks the abundance below which a subunit is not part of
+    the core ribosome; the count either side of it is written on the plot.
+    """
+    positive = means[means > 0]
+    grid, density = subunit_density(np.log10(positive.to_numpy()))
+    cut = np.log10(threshold)
+    kept = int((positive >= threshold).sum())
+
+    figure, axis = plt.subplots(figsize=(width, height), facecolor=SURFACE)
+    axis.set_facecolor(SURFACE)
+    axis.plot(grid, density, color=PALETTE[0], linewidth=1.6)
+    axis.axvline(cut, color=MUTED, linewidth=0.8, linestyle="--")
+    axis.text(
+        cut + 0.08, axis.get_ylim()[1] * 0.96,
+        f"core ribosome: {kept} of {len(positive)} subunits\nat or above {threshold:g}",
+        fontsize=7, color=INK, va="top", ha="left",
+    )
+    axis.set_xlabel("Average subunit abundance, log10 (mmol/gDW)", fontsize=8, color=INK)
+    axis.set_ylabel("Density", fontsize=8, color=INK)
+    axis.set_title("Average ribosomal subunit abundance", fontsize=9, color=INK, loc="left")
+    axis.tick_params(labelsize=7, colors=MUTED, length=2)
+    axis.yaxis.grid(True, color=GRID, linewidth=0.5)
+    axis.set_axisbelow(True)
+    for side in ("top", "right"):
+        axis.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        axis.spines[side].set(color=GRID, linewidth=0.6)
+    figure.tight_layout()
 
     if path is not None:
         figure.savefig(path, facecolor=SURFACE)

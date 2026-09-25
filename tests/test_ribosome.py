@@ -16,6 +16,7 @@ from overflow.ribosome import (
     RibosomeSubunits,
     add_ribosome,
     amino_acid_demand,
+    candidate_means,
     core_subunits,
     read_ribosome,
     subunit_coefficient,
@@ -232,6 +233,36 @@ def test_selection_averages_over_every_replicate_of_every_condition():
     assert core_subunits(table, data).mean_abundance["A"] == pytest.approx(1.1e-5)
 
 
+def test_candidate_means_keep_the_subunits_below_the_threshold():
+    table = _ribosome_table(["A", "B", "C"])
+    data = _proteomics({"A": (1e-4, 3e-4), "B": (1e-7, 1e-7)})
+    means = candidate_means(table, data)
+    assert list(means.index) == ["A", "B"]
+    assert means["A"] == pytest.approx(2e-4)
+    assert means["B"] == pytest.approx(1e-7)
+
+
+def test_the_density_integrates_to_one_and_peaks_where_the_data_do():
+    from overflow.plots import subunit_density
+
+    log_values = np.r_[np.full(30, -4.0), np.full(10, -6.0)]
+    grid, density = subunit_density(log_values, bandwidth=0.1)
+    area = float(np.sum(0.5 * (density[1:] + density[:-1]) * np.diff(grid)))
+    assert area == pytest.approx(1.0, abs=0.02)
+    assert grid[np.argmax(density)] == pytest.approx(-4.0, abs=0.1)
+    assert grid.min() == pytest.approx(-6.3) and grid.max() == pytest.approx(-3.7)
+
+
+def test_the_figure_reports_the_core_and_is_written(tmp_path):
+    from overflow.plots import subunit_abundance_figure
+
+    means = pd.Series({"A": 1e-4, "B": 3e-5, "C": 1e-7})
+    path = tmp_path / "riboSubunits.pdf"
+    figure = subunit_abundance_figure(means, 1e-5, path)
+    assert path.stat().st_size > 1000
+    assert "core ribosome: 2 of 3 subunits" in figure.axes[0].texts[0].get_text()
+
+
 # --- against the real data -------------------------------------------
 
 @pytest.mark.slow
@@ -388,3 +419,13 @@ def test_ribosome_cost_is_proportional_to_how_fast_protein_is_made(model, subuni
     half = model.optimize()
     assert half.objective_value == pytest.approx(full.objective_value / 2)
     assert abs(half.fluxes["usage_prot_R1"]) == pytest.approx(full_usage / 2)
+
+
+def test_the_candidate_means_agree_with_the_selected_core():
+    from overflow.proteomics import read_proteomics
+
+    table = read_ribosome()
+    means = candidate_means(table, read_proteomics())
+    core = core_subunits(table, read_proteomics())
+    assert int((means >= MIN_MEAN_ABUNDANCE).sum()) == len(core.uniprot_ids)
+    assert set(means[means >= MIN_MEAN_ABUNDANCE].index) == set(core.uniprot_ids)

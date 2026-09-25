@@ -32,11 +32,14 @@ from overflow.proteomics import (
     replicate_matrix,
     to_mass,
 )
+from overflow.plots import subunit_abundance_figure
 from overflow.ribosome import (
+    MIN_MEAN_ABUNDANCE,
     RibosomeResult,
     RibosomeSubunits,
     SubunitConstraints,
     add_ribosome,
+    candidate_means,
     constrain_subunits,
     core_subunits,
     read_ribosome,
@@ -175,6 +178,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     generation = args.results_dir / "modelGeneration"
     generation.mkdir(parents=True, exist_ok=True)
+
+    means = candidate_means(read_ribosome(), table)
+    means.rename("mean_abundance_mmol_gDW").rename_axis("uniprot").reset_index().assign(
+        core=lambda frame: frame["mean_abundance_mmol_gDW"] >= MIN_MEAN_ABUNDANCE
+    ).to_csv(generation / "averageRiboSubunitAbundance.tsv", sep="\t", index=False)
+    subunit_abundance_figure(
+        means, MIN_MEAN_ABUNDANCE, generation / "average_riboSubunit_abundance.pdf"
+    )
 
     results = []
     for name in args.conditions or CONDITION_ORDER:

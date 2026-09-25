@@ -95,7 +95,9 @@ Options change what the models are asked to account for:
 python -m overflow.build_ribosome
 ```
 
-Writes `models/ecModel_P_<cond>_ribosome.yml`. The protein pseudoreaction is
+Writes `models/ecModel_P_<cond>_ribosome.yml`, and a density plot of the average
+abundance of the candidate subunits (`results/modelGeneration/average_riboSubunit_abundance.pdf`,
+the numbers in `averageRiboSubunitAbundance.tsv`) marking where the core is cut. The protein pseudoreaction is
 split so that protein comes out of a `translation` reaction catalysed by the
 ribosomal subunits, at 10.5 amino acids per second per ribosome. The core is
 the 48 subunits whose average abundance across all conditions reaches
