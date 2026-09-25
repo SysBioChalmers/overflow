@@ -172,3 +172,26 @@ def test_the_axis_covers_the_full_percentage_range(legacy_usage, annotation, tmp
     for axis in figure.axes:
         low, high = axis.get_ylim()
         assert low <= 0 and high >= 100
+
+
+def test_the_figure_is_drawn_as_the_published_ggplot(legacy_usage, annotation, tmp_path):
+    """Size, colours, line widths and text sizes of boxplotEnzymeUsage.R."""
+    from overflow.plots import LEGACY_COLOURS, SUPPLEMENT_SYSTEMS, capacity_usage_figure
+    from matplotlib.colors import to_hex
+
+    capacity = capacity_usage_by_system(legacy_usage, annotation)
+    figure = capacity_usage_figure(capacity, SUPPLEMENT_SYSTEMS, tmp_path / "f.pdf")
+
+    assert figure.get_figwidth() * 2.54 == pytest.approx(10.0)
+    assert figure.get_figheight() * 2.54 == pytest.approx(4.5)
+    for axis, colour in zip(figure.axes, LEGACY_COLOURS):
+        assert LEGACY_COLOURS == ("#CBBBA0", "#1D1D1B", "#1D71B8", "#878787")
+        box = axis.patches[0]
+        assert to_hex(box.get_edgecolor()).upper() == colour
+        assert to_hex(box.get_facecolor()) == "#ffffff"
+        assert box.get_linewidth() == pytest.approx(0.35 * 72.27 / 25.4 * 0.75)
+        assert axis.title.get_fontsize() == pytest.approx(5.6)
+    first = figure.axes[0]
+    assert first.yaxis.label.get_fontsize() == 7
+    assert [t.get_text() for t in first.get_yticklabels()] == ["0", "25", "50", "75", "100"]
+    assert not figure.axes[1].spines["left"].get_visible()

@@ -183,9 +183,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     means.rename("mean_abundance_mmol_gDW").rename_axis("uniprot").reset_index().assign(
         core=lambda frame: frame["mean_abundance_mmol_gDW"] >= MIN_MEAN_ABUNDANCE
     ).to_csv(generation / "averageRiboSubunitAbundance.tsv", sep="\t", index=False)
-    subunit_abundance_figure(
-        means, MIN_MEAN_ABUNDANCE, generation / "average_riboSubunit_abundance.pdf"
-    )
+    subunit_abundance_figure(means, generation / "average_riboSubunit_abundance.pdf")
 
     results = []
     for name in args.conditions or CONDITION_ORDER:
