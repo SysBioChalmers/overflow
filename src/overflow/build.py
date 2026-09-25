@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from geckopy import fill_enz_concs, save_ec_model, set_prot_pool_size
 
+from overflow.solver import HELP, use_solver
 from overflow.adapter import build_adapter, load_model
 from overflow.biomass import apply_protein_content
 from overflow.config import (
@@ -347,7 +348,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--ngam-steps", type=int, default=100)
     parser.add_argument(
         "--solver",
-        help="LP solver to use, e.g. gurobi or glpk (default: cobrapy's)",
+        help=HELP,
     )
     parser.add_argument("--no-complex-fix", action="store_true")
     parser.add_argument("--gam", choices=("model", "polymerization"), default="model")
@@ -383,10 +384,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.solver:
-        import cobra
-
-        cobra.Configuration().solver = args.solver
+    use_solver(args.solver)
 
     conditions = load_conditions()
     table = read_proteomics()

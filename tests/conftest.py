@@ -1,13 +1,7 @@
-import os
-
-import cobra
 import pytest
 
-# Tests run on the open solver by default: they are small enough not to
-# need a commercial one, and a licence that is busy or absent should not
-# turn into a wall of failures that look like code.
-cobra.Configuration().solver = os.environ.get("OVERFLOW_TEST_SOLVER", "glpk")
-
+# Importing overflow selects the solver: Gurobi unless OVERFLOW_SOLVER names
+# another (CI has no licence and sets it to glpk).
 from overflow import build_adapter, load_conditions, load_gem, load_model
 
 

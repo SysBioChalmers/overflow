@@ -18,9 +18,10 @@ kept in [`legacy_matlab/`](legacy_matlab/).
 pip install -e ".[dev]"
 ```
 
-Python 3.11 or later. A linear programming solver is required; the analysis
-scripts are developed against Gurobi, and the test suite runs on the GLPK
-solver that ships with cobrapy.
+Python 3.11 or later. Gurobi (`gurobipy` with a licence) is the default solver for
+the analysis and the tests. Another solver can be chosen with `--solver`, or with
+the `OVERFLOW_SOLVER` environment variable, which also applies to the tests; an
+unavailable solver is an error, not a silent switch.
 
 ## Layout
 
@@ -63,7 +64,7 @@ protein content and dilution rate on top.
 
 ```bash
 python -m overflow.build                 # every condition
-python -m overflow.build CN4 --solver glpk
+python -m overflow.build CN4 --solver glpk   # instead of the default, Gurobi
 ```
 
 Each condition gets `models/ecModel_P_<cond>.yml` and, in `results/`, the
@@ -166,5 +167,5 @@ pytest -m "not slow"         # skip the tests that load a genome-scale model
 pytest -m integration        # build a condition end to end; minutes
 ```
 
-The suite runs on GLPK by default, so it needs no commercial solver licence;
-set `OVERFLOW_TEST_SOLVER` to use another.
+The suite runs on the same solver as the analysis, Gurobi by default. Set
+`OVERFLOW_SOLVER=glpk` to run it without a licence, as CI does.
