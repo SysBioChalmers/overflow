@@ -11,11 +11,16 @@ interior; means over such draws are vertex means.
 """
 from __future__ import annotations
 
+import signal
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Mapping, Optional
 
 import numpy as np
 import pandas as pd
+import raven_toolbox.analysis.sampling as raven_sampling
+from cobra.exceptions import Infeasible
+from cobra.flux_analysis import pfba
 from raven_toolbox.analysis.sampling import random_sampling
 
 from overflow.biomass import (
@@ -49,6 +54,22 @@ FORMATE_DEHYDROGENASE = "r_0445"
 FORMATE_EXCHANGE = "r_1793"
 
 
+@contextmanager
+def time_limit(seconds: float):
+    """Raise ``TimeoutError`` in the main thread once ``seconds`` have passed."""
+
+    def expire(signum, frame):
+        raise TimeoutError
+
+    previous = signal.signal(signal.SIGALRM, expire)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
 def use_fork_start_method() -> None:
     """Have multiprocessing fork rather than use a forkserver.
 
@@ -68,6 +89,19 @@ def use_fork_start_method() -> None:
         multiprocessing.set_start_method("fork", force=True)
     except RuntimeError:  # already started a pool; nothing to do
         pass
+
+
+def tolerant_pfba(model: "cobra.Model", fraction_of_optimum: float = 1 - 1e-6):
+    """Minimise total flux at the optimum, keeping the plain solution if that is infeasible.
+
+    Pinning the objective exactly at its optimum can be numerically
+    infeasible for a single draw; a small slack avoids most of those and
+    the plain solution covers the rest.
+    """
+    try:
+        return pfba(model, fraction_of_optimum=fraction_of_optimum)
+    except Infeasible:
+        return model.optimize()
 
 
 def measured_rate(condition: Condition, field_name: str) -> float:
@@ -171,7 +205,13 @@ def polymerization_breakdown(model: "cobra.Model", gam_base: float = GAM_NO_POLY
     return costs
 
 
-def loopless_bounds(model: "cobra.Model", processes: Optional[int] = None) -> pd.DataFrame:
+def loopless_bounds(
+    model: "cobra.Model",
+    processes: Optional[int] = None,
+    seed: int = 0,
+    attempts: int = 4,
+    seconds: float = 900.0,
+) -> pd.DataFrame:
     """Flux range of every reaction that does not need a closed cycle.
 
     Ordinary variability analysis lets a reaction in a thermodynamically
@@ -185,8 +225,22 @@ def loopless_bounds(model: "cobra.Model", processes: Optional[int] = None) -> pd
         import cobra
 
         cobra.Configuration().processes = processes
-    return flux_variability_analysis(
-        model, fraction_of_optimum=0.0, loopless="cycleFreeFlux"
+    for attempt in range(attempts):
+        # cobra picks the cyclic reactions with random LP weights, and how
+        # long that takes depends on them: most seeds finish in a minute or
+        # two, an occasional one runs for hours. A fresh seed after a time
+        # limit gets past it.
+        np.random.seed(seed + attempt)
+        try:
+            with time_limit(seconds):
+                return flux_variability_analysis(
+                    model, fraction_of_optimum=0.0, loopless="cycleFreeFlux"
+                )
+        except TimeoutError:
+            continue
+    raise TimeoutError(
+        f"the loop-free variability analysis did not finish in {seconds:.0f} s "
+        f"in any of {attempts} attempts"
     )
 
 
@@ -263,7 +317,7 @@ def sample_condition(
     seed: Optional[int] = None,
     good_reactions: Optional[list[str]] = None,
     n_proc: Optional[int] = None,
-    min_flux: Optional[bool] = None,
+    min_flux: bool = True,
     replace_max_bound: bool = False,
     loopless: bool = True,
 ) -> tuple[SamplingResult, list[str]]:
@@ -280,12 +334,15 @@ def sample_condition(
     are opened an objective can turn out unbounded, and this sampler
     raises on that where RAVEN's returned no solution and moved on.
 
-    ``min_flux`` minimises total flux within each draw. The published
-    second pass did this to suppress loops; here one awkward draw in
-    several thousand raises out of the parsimonious solve and takes the
-    whole run with it, so it is off unless asked for.
+    ``min_flux`` minimises total flux within each draw, as the published
+    second pass did. Without it the sampled means drift into
+    high-flux routes: the pentose phosphate pathway and a reversed
+    NADP isocitrate dehydrogenase carry several times the published
+    flux. The step is tolerant of a draw whose optimum cannot be pinned
+    exactly.
     """
     apply_bounds(model, sampling_bounds(condition, tolerance, include_formate=include_formate))
+    raven_sampling.pfba = tolerant_pfba
     highest = constrain_maintenance(model)
 
     # Without this the malate dehydrogenases cycle against each other at
@@ -297,7 +354,7 @@ def sample_condition(
         # the objective set, and the objective set has to come from this
         # condition: a reaction that moves freely in one condition can be
         # pinned in another, and picking it then wastes a whole draw.
-        ranges = loopless_bounds(model, n_proc)
+        ranges = loopless_bounds(model, n_proc, seed=seed or 0)
         tightened = apply_loopless_bounds(model, ranges)
         good_reactions = good_reactions_from(ranges)
 
@@ -309,7 +366,7 @@ def sample_condition(
         replace_max_bound=replace_max_bound,
         suppress_errors=True,
         good_reactions=good_reactions,
-        min_flux=include_formate if min_flux is None else min_flux,
+        min_flux=min_flux,
         seed=seed,
         n_proc=n_proc,
     )

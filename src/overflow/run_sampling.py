@@ -60,7 +60,7 @@ def run(
     n_proc: Optional[int] = None,
     cache: Optional[Path] = None,
     replace_max_bound: bool = False,
-    min_flux: bool = False,
+    min_flux: bool = True,
     loopless: bool = True,
     verbose: bool = True,
 ) -> dict[str, dict]:
@@ -164,9 +164,9 @@ def main(argv: Optional[list[str]] = None) -> int:
              "turns out unbounded",
     )
     parser.add_argument(
-        "--min-flux", action="store_true",
-        help="minimise total flux within each draw, as the published second "
-             "pass did; one numerically awkward draw then aborts the run",
+        "--no-min-flux", dest="min_flux", action="store_false",
+        help="skip the minimisation of total flux within each draw that the "
+             "published second pass did",
     )
     parser.add_argument(
         "--keep-loops", action="store_true",

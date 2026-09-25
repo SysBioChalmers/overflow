@@ -17,6 +17,7 @@ from overflow.sampling import (
     measured_rate,
     sampling_bounds,
 )
+from routes import two_route_model
 
 LEGACY = ROOT / "legacy_matlab" / "results" / "randomSampling"
 
@@ -238,3 +239,62 @@ def test_a_crossed_range_leaves_the_reaction_alone():
         model, pd.DataFrame({"minimum": [5.0], "maximum": [2.0]}, index=["r"])
     )
     assert r.bounds == (0.0, 1.0)
+
+
+def test_a_variability_analysis_that_overruns_is_retried_with_a_new_seed(monkeypatch):
+    import time
+
+    import cobra.flux_analysis as flux_analysis
+    import numpy as np
+
+    from overflow.sampling import loopless_bounds
+
+    seeds = []
+
+    def analysis(model, **kwargs):
+        seeds.append(int(np.random.get_state()[1][0]))
+        if len(seeds) == 1:
+            time.sleep(5)
+        return "ranges"
+
+    monkeypatch.setattr(flux_analysis, "flux_variability_analysis", analysis)
+    assert loopless_bounds(object(), seed=7, attempts=3, seconds=0.2) == "ranges"
+    assert len(seeds) == 2 and seeds[0] != seeds[1]
+
+
+def test_a_variability_analysis_that_never_finishes_is_reported(monkeypatch):
+    import time
+
+    import cobra.flux_analysis as flux_analysis
+
+    from overflow.sampling import loopless_bounds
+
+    monkeypatch.setattr(
+        flux_analysis, "flux_variability_analysis", lambda model, **kw: time.sleep(5)
+    )
+    with pytest.raises(TimeoutError, match="2 attempts"):
+        loopless_bounds(object(), attempts=2, seconds=0.1)
+
+
+def test_a_draw_that_cannot_be_pinned_keeps_the_plain_solution(monkeypatch):
+    from cobra.exceptions import Infeasible
+
+    import overflow.sampling as sampling
+
+    model = two_route_model()
+
+    def refuse(*args, **kwargs):
+        raise Infeasible("numerically infeasible")
+
+    monkeypatch.setattr(sampling, "pfba", refuse)
+    solution = sampling.tolerant_pfba(model)
+    assert solution.status == "optimal"
+    assert solution.fluxes["demand"] == pytest.approx(1.0)
+
+
+def test_the_tolerant_step_minimises_total_flux_when_it_can():
+    import overflow.sampling as sampling
+
+    solution = sampling.tolerant_pfba(two_route_model())
+    assert solution.fluxes["direct"] == pytest.approx(0.0, abs=1e-5)
+    assert solution.fluxes["step1"] == pytest.approx(1.0, abs=1e-5)
