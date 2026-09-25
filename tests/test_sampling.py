@@ -298,3 +298,54 @@ def test_the_tolerant_step_minimises_total_flux_when_it_can():
     solution = sampling.tolerant_pfba(two_route_model())
     assert solution.fluxes["direct"] == pytest.approx(0.0, abs=1e-5)
     assert solution.fluxes["step1"] == pytest.approx(1.0, abs=1e-5)
+
+
+def _run_dir(path, condition, flux, alternative):
+    folder = path / condition / "randomSampling"
+    folder.mkdir(parents=True)
+    pd.DataFrame(
+        {"rxnID": ["r1", "r2"], "rxnName": ["a", "b"],
+         f"{condition}_AVERAGE": flux, f"{condition}_STDEV": [0.1, 0.2]}
+    ).to_csv(folder / "allFluxes.tsv", sep="\t", index=False)
+    pd.DataFrame({"Row": ["rGlu", "ETC_rATP"], condition: flux}).to_csv(
+        folder / "selectedFluxes.tsv", sep="\t", index=False
+    )
+    pd.DataFrame({"rxnID": list(alternative), "rxnName": ["x"] * len(alternative),
+                  condition: list(alternative.values())}).to_csv(
+        folder / "altExchangeFlux.tsv", sep="\t", index=False
+    )
+    return path / condition
+
+
+def test_separate_condition_runs_merge_into_one_set(tmp_path):
+    from overflow.run_sampling import merge_sampling
+
+    first = _run_dir(tmp_path, "CN4", [1.0, 2.0], {"r_formate": 0.3})
+    second = _run_dir(tmp_path, "CN22", [3.0, 4.0], {"r_glycine": 0.2})
+    merge_sampling([first, second], tmp_path / "merged")
+    out = tmp_path / "merged" / "randomSampling"
+
+    fluxes = pd.read_csv(out / "allFluxes.tsv", sep="\t")
+    assert list(fluxes.columns) == ["rxnID", "rxnName", "CN4_AVERAGE", "CN4_STDEV",
+                                    "CN22_AVERAGE", "CN22_STDEV"]
+    assert list(fluxes["CN22_AVERAGE"]) == [3.0, 4.0]
+
+    summary = pd.read_csv(out / "selectedFluxes.tsv", sep="\t")
+    assert list(summary.columns) == ["Row", "CN4", "CN22"]
+
+    alternative = pd.read_csv(out / "altExchangeFlux.tsv", sep="\t").set_index("rxnID")
+    assert alternative.loc["r_formate", "CN4"] == pytest.approx(0.3)
+    assert pd.isna(alternative.loc["r_formate", "CN22"])
+    assert alternative.loc["r_glycine", "CN22"] == pytest.approx(0.2)
+
+
+def test_runs_on_different_reactions_are_not_merged(tmp_path):
+    from overflow.run_sampling import merge_sampling
+
+    first = _run_dir(tmp_path, "CN4", [1.0, 2.0], {"r_formate": 0.3})
+    second = _run_dir(tmp_path, "CN22", [3.0, 4.0], {"r_formate": 0.3})
+    table = pd.read_csv(second / "randomSampling" / "allFluxes.tsv", sep="\t")
+    table["rxnID"] = ["r1", "r9"]
+    table.to_csv(second / "randomSampling" / "allFluxes.tsv", sep="\t", index=False)
+    with pytest.raises(ValueError, match="different set of reactions"):
+        merge_sampling([first, second], tmp_path / "merged")
