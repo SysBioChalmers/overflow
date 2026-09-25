@@ -139,6 +139,14 @@ one, read from `legacy_matlab/results/`.
 
 ## Running the whole analysis
 
+The analysis is run with `--fit-rates`, implemented in `overflow.build`
+(`relax_to_measured_rates`): it holds CO2, oxygen and the byproducts at their
+measurements and raises the measured enzyme abundances by the least that makes
+that feasible. Without it those rates are free, and on the earlier tutorial model
+the enzyme-constrained solution disposed of surplus carbon through unmeasured
+exits instead of respiring it, so the flux distribution did not describe the
+measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs.
+
 ```bash
 python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08
 python -m overflow.build_ribosome
