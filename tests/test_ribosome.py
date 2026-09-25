@@ -260,7 +260,11 @@ def test_the_figure_reports_the_core_and_is_written(tmp_path):
     path = tmp_path / "riboSubunits.pdf"
     figure = subunit_abundance_figure(means, 1e-5, path)
     assert path.stat().st_size > 1000
-    assert "core ribosome: 2 of 3 subunits" in figure.axes[0].texts[0].get_text()
+    label = figure.axes[0].texts[0]
+    assert "2 of 3 subunits" in label.get_text()
+    figure.canvas.draw()
+    assert figure.bbox.contains(*label.get_window_extent().max)
+    assert figure.bbox.contains(*label.get_window_extent().min)
 
 
 # --- against the real data -------------------------------------------

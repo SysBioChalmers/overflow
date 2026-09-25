@@ -129,7 +129,7 @@ def subunit_abundance_figure(
     means: pd.Series,
     threshold: float,
     path: Optional[Path | str] = None,
-    width: float = 3.6,
+    width: float = 4.0,
     height: float = 2.6,
 ):
     """Distribution of the average abundance of the candidate ribosomal subunits.
@@ -146,9 +146,10 @@ def subunit_abundance_figure(
     axis.set_facecolor(SURFACE)
     axis.plot(grid, density, color=PALETTE[0], linewidth=1.6)
     axis.axvline(cut, color=MUTED, linewidth=0.8, linestyle="--")
+    axis.set_xlim(grid.min(), grid.max() + 1.2)
     axis.text(
         cut + 0.08, axis.get_ylim()[1] * 0.96,
-        f"core ribosome: {kept} of {len(positive)} subunits\nat or above {threshold:g}",
+        f"core ribosome:\n{kept} of {len(positive)} subunits\nat or above {threshold:g}",
         fontsize=7, color=INK, va="top", ha="left",
     )
     axis.set_xlabel("Average subunit abundance, log10 (mmol/gDW)", fontsize=8, color=INK)
