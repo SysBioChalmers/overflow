@@ -104,3 +104,41 @@ def tiny_ec_model(pool: float = 100.0, supply: float = 10.0) -> EcModel:
     ec_model.ec.validate()
     return ec_model
 
+#: Amino acids consumed per unit of protein in the tiny model's protein
+#: pseudoreaction. Two, so that the translation kcat works out to a
+#: number that is easy to check by hand.
+TINY_AA_PER_PROTEIN = 2.0
+
+
+def tiny_translation_model(pool: float = 200.0, supply: float = 10.0) -> EcModel:
+    r"""The tiny model with a protein pseudoreaction in the way of growth.
+
+        supply -> S -+- R1 (E1) -+-> P -2P-> protein -> biomass
+                     \- R2 (E2) -/
+
+    Growth now needs protein, and protein needs the protein
+    pseudoreaction, which is where the ribosome gets inserted.
+    """
+    model = tiny_ec_model(pool=pool, supply=supply)
+    inner = cobra.Model("tiny_translation")
+    inner.add_metabolites(
+        [cobra.Metabolite("protein", name="protein", compartment="c")]
+    )
+    protein = inner.metabolites.get_by_id("protein")
+    model.add_metabolites([protein])
+
+    product = model.metabolites.get_by_id("P")
+    biomass = model.metabolites.get_by_id("biomass")
+
+    protein_rxn = cobra.Reaction(
+        "r_protein", name="protein pseudoreaction", lower_bound=0.0, upper_bound=1000.0
+    )
+    protein_rxn.add_metabolites({product: -TINY_AA_PER_PROTEIN, protein: 1.0})
+
+    growth = model.reactions.get_by_id("BIO")
+    growth.subtract_metabolites({product: growth.metabolites[product]})
+    growth.add_metabolites({protein: -1.0})
+
+    model.add_reactions([protein_rxn])
+    model.objective = "BIO"
+    return model
