@@ -127,9 +127,44 @@ means rather than an average over the interior of the flux space. `--no-min-flux
 skips the second step, which lets the sampler wander into high-flux routes: the
 pentose phosphate pathway then carries several times the published flux.
 
+## Comparing against the published results
+
+```bash
+python -m overflow.compare
+```
+
+Writes `results/COMPARISON.md`: predicted exchange rates, median capacity usage
+per system and the sampled ATP and redox budget, this pipeline beside the MATLAB
+one, read from `legacy_matlab/results/`.
+
+## Running the whole analysis
+
+The analysis is run with `--fit-rates`, implemented in `overflow.build`
+(`relax_to_measured_rates`): it holds CO2, oxygen and the byproducts at their
+measurements and raises the measured enzyme abundances by the least that makes
+that feasible. Without it those rates are free, and on the earlier tutorial model
+the enzyme-constrained solution disposed of surplus carbon through unmeasured
+exits instead of respiring it, so the flux distribution did not describe the
+measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs.
+
+```bash
+python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08
+python -m overflow.build_ribosome
+python -m overflow.analyze_usage
+python -m overflow.run_sampling --procs 12
+python -m overflow.compare
+```
+
+Each step reads the models the previous one wrote, so `--models-dir` and
+`--results-dir` keep a run self-contained.
+
 ## Tests
 
 ```bash
-pytest                  # everything
-pytest -m "not slow"    # skip the tests that load a genome-scale model
+pytest                       # everything except the full condition builds
+pytest -m "not slow"         # skip the tests that load a genome-scale model
+pytest -m integration        # build a condition end to end; minutes
 ```
+
+The suite runs on GLPK by default, so it needs no commercial solver licence;
+set `OVERFLOW_TEST_SOLVER` to use another.
