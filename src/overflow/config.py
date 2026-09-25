@@ -26,6 +26,7 @@ FERMENTATION_DATA = DATA_DIR / "fermentationData.txt"
 PROTEOMICS_DATA = DATA_DIR / "abs_proteomics.txt"
 RIBOSOME_DATA = DATA_DIR / "ribosome.txt"
 ANNOTATION_DATA = DATA_DIR / "selectedAnnotation.txt"
+UNIPROT_DATA = DATA_DIR / "uniprot.tsv"
 
 # --- reaction identifiers (yeast-GEM) ---------------------------------
 BIO_RXN = "r_4041"          # biomass pseudoreaction; its flux is the growth rate

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from geckopy import ModelAdapter, load_conventional_gem, load_ec_model
 
-from overflow.config import CONV_GEM, EC_MODEL, ROOT
+from overflow.config import EC_MODEL, ROOT
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import cobra

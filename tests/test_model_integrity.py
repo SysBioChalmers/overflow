@@ -22,7 +22,7 @@ pytestmark = pytest.mark.slow
 def test_model_is_a_full_ecmodel(ec_model):
     assert ec_model.ec.gecko_light is False
     assert len(ec_model.ec.enzymes) == 1144
-    assert len(ec_model.ec.rxns) == 4834
+    assert len(ec_model.ec.rxns) == 4850
 
 
 def test_every_reaction_the_pipeline_names_exists(ec_model):

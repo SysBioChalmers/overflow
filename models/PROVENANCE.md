@@ -6,15 +6,16 @@ The full enzyme-constrained yeast model, in GECKO 4 / RAVEN 3 YAML format.
 
 | | |
 |---|---|
-| Source | [SysBioChalmers/GECKO](https://github.com/SysBioChalmers/GECKO), `tutorials/full_ecModel/models/ecYeastGEM.yml` |
-| Branch | `develop4` |
-| Commit | `cbc4ca3311df8ca44c28792f40008b9cbef692bd` |
-| Blob | `891ad7ba769cdc7d0fd4b605b0fd625c8cdd6867` |
-| Built with | GECKO 4.0.0b1, RAVEN 3.0.0b1 |
+| Source | [SysBioChalmers/ecModels](https://github.com/SysBioChalmers/ecModels), `ecYeastGEM/models/ecYeastGEM.yml` |
+| Branch | `gecko4` |
+| Commit | `880288747ad98220764ce07f8b7a396048e0537d` |
+| Blob | `d684eb01ddaf49da9ac9f5891aae372e16b34542` |
+| Base model | yeast-GEM 9.1.1 |
+| Built with | geckopy 4.0.0b1 |
 
-1144 enzymes over 4834 enzyme-constrained reactions. kcat sources: 3280 BRENDA,
-1076 DLKcat, 251 standard, 217 custom, 6 sensitivity-tuned, 3 isozyme-derived,
-1 set explicitly. Subunit stoichiometries come from Complex Portal.
+1144 enzymes over 4850 enzyme-constrained reactions. The kcats were tuned
+against measured growth rates and exchange fluxes with CMA-ES, see the
+`ecYeastGEM` README in the source repository.
 
 The model ships with `r_4046` (non-growth associated maintenance) pinned at
 0.7 mmol ATP/gDW/h and `prot_pool_exchange` bounded at 125 mg/gDW, which is
@@ -23,14 +24,17 @@ per condition when building the proteome-constrained models.
 
 ## yeast-GEM.yml
 
-The conventional GEM the ecModel was built from, from the same commit. Used
-as `conv_gem` by the geckopy adapter and as the starting model for random
+The conventional GEM the ecModel was built from, yeast-GEM release `v9.1.1`
+(`model/yeast-GEM.yml`, sha256
+`2ddfaaa73ead41ab243127d1b34fa56db2c86052f6eabcd12bb4eea93947dc17`). Used as
+`conv_gem` by the geckopy adapter and as the starting model for random
 sampling.
 
 ## Verifying
 
 ```bash
-curl -sL https://raw.githubusercontent.com/SysBioChalmers/GECKO/cbc4ca3311df8ca44c28792f40008b9cbef692bd/tutorials/full_ecModel/models/ecYeastGEM.yml \
+curl -sL https://raw.githubusercontent.com/SysBioChalmers/ecModels/880288747ad98220764ce07f8b7a396048e0537d/ecYeastGEM/models/ecYeastGEM.yml \
   | git hash-object --stdin
-# 891ad7ba769cdc7d0fd4b605b0fd625c8cdd6867
+# d684eb01ddaf49da9ac9f5891aae372e16b34542
+curl -sL https://raw.githubusercontent.com/SysBioChalmers/yeast-GEM/v9.1.1/model/yeast-GEM.yml | sha256sum
 ```

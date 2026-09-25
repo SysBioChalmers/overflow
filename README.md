@@ -59,6 +59,35 @@ model = load_model(build_adapter(conditions["CN4"]))
 `build_adapter` reads `model_adapter.toml` and layers the condition's measured
 protein content and dilution rate on top.
 
+## Building the condition models
+
+```bash
+python -m overflow.build                 # every condition
+python -m overflow.build CN4 --solver glpk
+```
+
+Each condition gets `models/ecModel_P_<cond>.yml` and, in `results/`, the
+enzymes whose measured abundance the model could not run on, the enzymes whose
+caps had to be released, and the full flux distribution.
+
+Options change what the models are asked to account for:
+
+- `--fit-rates` holds CO2, oxygen and the byproducts within a tolerance of their
+  measurements (`--rate-tolerance`, default 5%) and raises the measured abundances
+  by the least that makes that feasible. Without it those rates are free, and the
+  model disposes of surplus carbon through whichever exit is cheapest in protein
+  rather than respiring it.
+- `--uptake-flex` caps glucose uptake at that multiple of the measured rate
+  (default 1.05). CN4 needs 1.08: at its dilution rate the model needs 6.5% more
+  glucose than was measured, even with protein unlimited.
+- `--objective` chooses what the finished model optimises: the smallest protein
+  pool (`protein`, the default), or the smallest total flux at the dilution rate
+  over every reaction (`flux`) or over the metabolic reactions only
+  (`metabolic-flux`). The flux objectives need `--fit-rates`.
+- `--scale-protein` rescales biomass to the measured protein content. Off by
+  default: the model has no carbon to spare at the measured glucose uptake, and
+  CN4 then falls short of its dilution rate.
+
 ## Tests
 
 ```bash
