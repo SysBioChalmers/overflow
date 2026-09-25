@@ -110,6 +110,23 @@ Writes, per enzyme and condition, how much of it the model uses and what
 fraction of what was available that is, plus the capacity usage of the
 annotated systems and the two figures over them.
 
+## Random sampling
+
+```bash
+python -m overflow.run_sampling --procs 16
+```
+
+Samples the conventional model under the measured rates, with and without
+formate in the measured set, and writes the sampled means and standard
+deviations, the byproducts the model secretes when it is not told to, and the
+ATP and redox budget.
+
+Sampling draws vertices by maximising small random objectives and then minimising
+total flux at each, as the published analysis did; means over such draws are vertex
+means rather than an average over the interior of the flux space. `--no-min-flux`
+skips the second step, which lets the sampler wander into high-flux routes: the
+pentose phosphate pathway then carries several times the published flux.
+
 ## Tests
 
 ```bash
