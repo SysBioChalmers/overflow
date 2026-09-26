@@ -158,6 +158,10 @@ python -m overflow.run_sampling --procs 12
 python -m overflow.compare
 ```
 
+The tables and figures under `results/` are from a full run of this recipe. The
+models it builds (`models/ecModel_P_<cond>.yml`, about 67 MB) are not committed and
+rebuild in a few minutes.
+
 Each step reads the models the previous one wrote, so `--models-dir` and
 `--results-dir` keep a run self-contained.
 
