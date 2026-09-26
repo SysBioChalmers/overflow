@@ -87,6 +87,33 @@ def read_ribosome(path: Path | str = RIBOSOME_DATA) -> pd.DataFrame:
     return table
 
 
+def _average_abundance(measured: pd.DataFrame, uniprot: str) -> Optional[float]:
+    """Mean over every replicate of every condition, or None if it has none.
+
+    As in the published analysis, a subunit missing from any replicate has no
+    average.
+    """
+    if uniprot not in measured.index:
+        return None
+    values = pd.to_numeric(measured.loc[uniprot], errors="coerce").to_numpy(float)
+    mean = float(values.mean())
+    return mean if np.isfinite(mean) else None
+
+
+def candidate_means(
+    ribosome_table: pd.DataFrame, proteomics_table: pd.DataFrame
+) -> pd.Series:
+    """Average abundance [mmol/gDW] of every candidate subunit that has one."""
+    value_columns = [c for c in proteomics_table.columns if c.endswith("_abs")]
+    measured = proteomics_table.set_index("Protein.IDs")[value_columns]
+    means = {}
+    for uniprot in ribosome_table["uniprot"].astype(str):
+        mean = _average_abundance(measured, uniprot)
+        if mean is not None:
+            means[uniprot] = mean
+    return pd.Series(means, dtype=float)
+
+
 def core_subunits(
     ribosome_table: pd.DataFrame,
     proteomics_table: pd.DataFrame,
@@ -106,11 +133,8 @@ def core_subunits(
         uniprot = str(row["uniprot"])
         if uniprot not in measured.index:
             continue
-        values = pd.to_numeric(measured.loc[uniprot], errors="coerce").to_numpy(float)
-        if np.isnan(values).all():
-            continue
-        mean = float(np.nanmean(values))
-        if not np.isfinite(mean) or mean < threshold:
+        mean = _average_abundance(measured, uniprot)
+        if mean is None or mean < threshold:
             continue
         ids.append(uniprot)
         genes[uniprot] = str(row["gene"])

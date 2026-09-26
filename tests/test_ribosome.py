@@ -16,6 +16,7 @@ from overflow.ribosome import (
     RibosomeSubunits,
     add_ribosome,
     amino_acid_demand,
+    candidate_means,
     core_subunits,
     read_ribosome,
     subunit_coefficient,
@@ -232,6 +233,47 @@ def test_selection_averages_over_every_replicate_of_every_condition():
     assert core_subunits(table, data).mean_abundance["A"] == pytest.approx(1.1e-5)
 
 
+def test_candidate_means_keep_the_subunits_below_the_threshold():
+    table = _ribosome_table(["A", "B", "C"])
+    data = _proteomics({"A": (1e-4, 3e-4), "B": (1e-7, 1e-7)})
+    means = candidate_means(table, data)
+    assert list(means.index) == ["A", "B"]
+    assert means["A"] == pytest.approx(2e-4)
+    assert means["B"] == pytest.approx(1e-7)
+
+
+def test_the_density_integrates_to_one_and_peaks_where_the_data_do():
+    from overflow.plots import subunit_density
+
+    log_values = np.r_[np.full(30, -4.0), np.full(10, -6.0)]
+    grid, density = subunit_density(log_values, bandwidth=0.1)
+    area = float(np.sum(0.5 * (density[1:] + density[:-1]) * np.diff(grid)))
+    assert area == pytest.approx(1.0, abs=0.02)
+    assert grid[np.argmax(density)] == pytest.approx(-4.0, abs=0.1)
+    assert grid.min() == pytest.approx(-6.3) and grid.max() == pytest.approx(-3.7)
+
+
+def test_the_figure_is_the_published_matlab_plot(tmp_path):
+    from overflow.plots import subunit_abundance_figure
+
+    means = pd.Series({f"P{i}": 10 ** x for i, x in enumerate(np.linspace(-7, -4, 40))})
+    path = tmp_path / "riboSubunits.pdf"
+    figure = subunit_abundance_figure(means, path)
+    assert path.stat().st_size > 1000
+
+    axis = figure.axes[0]
+    assert axis.get_title() == "Distribution of average ribosomal subunit abundances"
+    assert axis.title.get_fontweight() == "bold"
+    assert axis.get_xlabel() == "Subunit abundance (log10(mmol/gDCW))"
+    assert axis.get_ylabel() == "Density"
+    line = axis.lines[0]
+    assert line.get_color() == "#0072BD"
+    assert axis.get_ylim()[0] == 0
+    box = axis.get_position()
+    assert box.width * figure.get_figwidth() * 72 == pytest.approx(341, abs=0.5)
+    assert box.height * figure.get_figheight() * 72 == pytest.approx(247, abs=0.5)
+
+
 # --- against the real data -------------------------------------------
 
 @pytest.mark.slow
@@ -388,3 +430,22 @@ def test_ribosome_cost_is_proportional_to_how_fast_protein_is_made(model, subuni
     half = model.optimize()
     assert half.objective_value == pytest.approx(full.objective_value / 2)
     assert abs(half.fluxes["usage_prot_R1"]) == pytest.approx(full_usage / 2)
+
+
+def test_the_candidate_means_agree_with_the_selected_core():
+    from overflow.proteomics import read_proteomics
+
+    table = read_ribosome()
+    means = candidate_means(table, read_proteomics())
+    core = core_subunits(table, read_proteomics())
+    assert int((means >= MIN_MEAN_ABUNDANCE).sum()) == len(core.uniprot_ids)
+    assert set(means[means >= MIN_MEAN_ABUNDANCE].index) == set(core.uniprot_ids)
+
+
+def test_a_subunit_missing_from_a_replicate_has_no_average():
+    """MATLAB's mean propagates NaN, so the published selection and figure leave
+    such a subunit out."""
+    table = _ribosome_table(["A", "B"])
+    data = _proteomics({"A": (1e-4, np.nan), "B": (1e-4, 1e-4)})
+    assert list(candidate_means(table, data).index) == ["B"]
+    assert core_subunits(table, data).uniprot_ids == ["B"]
