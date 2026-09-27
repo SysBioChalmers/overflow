@@ -1,0 +1,6 @@
+condition	subunits	translation_kcat	aa_per_protein	subunits_raised	growth_before	growth_after	pool_before	pool_after	ribosome_mg_gDW	ribosome_fraction
+CN4	48	2.5054	4.191	0	0.1	0.1	41.8	53.4	11.6	0.2171
+CN22	48	2.5054	4.191	0	0.1	0.1	74.3	85.9	11.6	0.135
+CN38	48	2.5054	4.191	3	0.1	0.1	79.4	91.0	11.6	0.1274
+CN75	48	2.5054	4.191	5	0.1	0.1	101.5	113.1	11.6	0.1026
+hGR	48	2.5054	4.191	12	0.29	0.29	133.1	166.7	33.6	0.2017
