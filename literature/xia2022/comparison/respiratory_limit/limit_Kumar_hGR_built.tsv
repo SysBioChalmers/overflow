@@ -1,2 +1,2 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
 Kumar	built	hGR	0.29	5.415584674	3.680414594	72	0	3.456386192344825	14.85742841904456	4.225386457060216	YJL003W (other); COX13 (ETC); YER099C (other)

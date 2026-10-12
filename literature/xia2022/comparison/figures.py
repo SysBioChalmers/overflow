@@ -10,7 +10,7 @@ import pandas as pd
 from overflow.plots import FONTS, LEGACY_COLOURS, capacity_usage_figure, _POINTS_PER_SIZE
 
 HERE = Path(__file__).resolve().parent
-FIG, TAB, OUT = HERE / "figures", HERE / "tables", HERE / "onset"
+FIG, TAB, OUT = HERE / "figures", HERE / "tables", HERE / "respiratory_limit"
 REPO = HERE.parents[2]
 XIA = HERE.parent
 SETS = {
@@ -138,7 +138,7 @@ def table_reserve(r):
     return wide.rename(columns=DISPLAY).reset_index()
 
 
-def table_coverage(onsets):
+def table_coverage(limits):
     """The series as converted against the series rescaled to the main data's coverage."""
     runs = {"Ptot": XIA, "coverage": XIA / "coverage"}
     rows = []
@@ -149,17 +149,17 @@ def table_coverage(onsets):
                        ethanol_measured=0.0 if pd.isna(FERM.loc[c, "Ethanol"]) else FERM.loc[c, "Ethanol"])
             for system in ("ETC", "Ribosome", "Glycolysis"):
                 row[f"{system} median usage (%)"] = medians.loc[system, c]
-            if onsets is not None:
+            if limits is not None:
                 dataset = "Xia" if label == "Ptot" else "XiaCoverage"
                 for variant in ("built", "measured"):
-                    hit = onsets[(onsets["dataset"] == dataset) & (onsets["variant"] == variant) & (onsets["condition"] == c)]
-                    row[f"onset ({variant})"] = hit["onset"].iloc[0] if len(hit) else float("nan")
+                    hit = limits[(limits["dataset"] == dataset) & (limits["variant"] == variant) & (limits["condition"] == c)]
+                    row[f"respiratory limit ({variant})"] = hit["respiratory_limit"].iloc[0] if len(hit) else float("nan")
             rows.append(row)
     return pd.DataFrame(rows)
 
 
-def onset_table(all_datasets=False):
-    files = sorted(OUT.glob("onset_*.tsv"))
+def limit_table(all_datasets=False):
+    files = sorted(OUT.glob("limit_*.tsv"))
     if not files:
         return None
     t = pd.concat(pd.read_csv(f, sep="\t") for f in files)
@@ -266,20 +266,20 @@ def figure_atp():
         save(fig, "fig4_atp_budget")
 
 
-def figure_onset(onsets, variant):
+def figure_limit(limits, variant):
     curves = pd.concat(pd.read_csv(f, sep="\t") for f in OUT.glob(f"curve_*_{variant}.tsv") if f.stat().st_size > 1)
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(1, 2, figsize=(14 / 2.54, 5.5 / 2.54), sharey=True)
         palette = dict(zip(ORDER, ["#CBBBA0", "#A08F6E", "#6E5F45", "#1D1D1B", "#878787", "#9CC3E6", "#1D71B8", "#0B3B66"]))
-        onset = onsets[onsets["variant"] == variant].set_index("condition")["onset"]
+        limit = limits[limits["variant"] == variant].set_index("condition")["respiratory_limit"]
         axes[0].axvspan(1.7, 2.3, color="#E6E0D4", linewidth=0, zorder=0)
-        axes[0].text(2.0, 13.2, "reported\nonset", ha="center", va="top", fontsize=SMALL - 0.6, color="#6E5F45")
+        axes[0].text(2.35, 13.5, "reported onset of overflow", ha="left", va="center", fontsize=SMALL - 0.6, color="#6E5F45")
         for axis, (ds, s) in zip(axes, SETS.items()):
             for c in s["conds"]:
                 cur = curves[(curves["dataset"] == ds) & (curves["condition"] == c)].sort_values("glucose")
                 axis.plot(cur["glucose"], cur["forced_overflow_C"], color=palette[c], linewidth=0.8, label=name(c))
-                if np.isfinite(onset.get(c, np.nan)):
-                    axis.plot(onset[c], -0.6, marker="^", markersize=3, color=palette[c], clip_on=False)
+                if np.isfinite(limit.get(c, np.nan)):
+                    axis.plot(limit[c], -0.6, marker="^", markersize=3, color=palette[c], clip_on=False)
                 measured_c = sum(w * (0 if pd.isna(FERM.loc[c, ex]) else FERM.loc[c, ex])
                                  for ex, w in (("Ethanol", 2), ("Acetate", 2), ("Glycerol", 3), ("Formate", 1)))
                 axis.plot(FERM.loc[c, "Glucose"], measured_c, "o", markersize=3.5, color=palette[c],
@@ -290,10 +290,10 @@ def figure_onset(onsets, variant):
             axis.set_ylim(-1, 14)
             axis.legend(fontsize=SMALL - 0.6, loc="upper left", handlelength=1.2)
         axes[0].set_ylabel("Forced overflow (mmol C/gDW/h)", fontsize=SMALL)
-        fig.text(0.99, 0.01, "lines: least overflow the proteome allows at the condition's growth rate   ▲: predicted onset   points: measured byproduct C",
+        fig.text(0.99, 0.01, "lines: least overflow the proteome allows at the condition's growth rate   ▲: respiratory limit   points: measured byproduct C",
                  ha="right", fontsize=SMALL - 0.6, color="#4D4D4D")
         fig.subplots_adjust(left=0.09, right=0.99, top=0.9, bottom=0.25, wspace=0.12)
-        save(fig, f"fig5_overflow_onset_{variant}")
+        save(fig, f"fig5_respiratory_limit_{variant}")
 
 
 def markdown(tables):
@@ -314,11 +314,11 @@ if __name__ == "__main__":
         ("Table 3. Unused measured capacity per system (% of the summed caps of measured enzymes)", table_reserve(r)),
         ("Table 4. Sampled ATP and redox budget (mean over samples, mmol/gDW/h)", table_atp()),
     ]
-    onsets = onset_table()
-    if onsets is not None:
-        tables.append(("Table 5. Glucose uptake at which the proteome forces overflow (mmol/gDW/h)", onsets))
+    limits = limit_table()
+    if limits is not None:
+        tables.append(("Table 5. Respiratory limit: the highest glucose uptake the measured proteome can respire completely at the condition's growth rate (mmol/gDW/h)", limits))
     if (XIA / "coverage" / "results").exists():
-        tables.append(("Table 6. The series scaled to Ptot, and rescaled to the coverage of the main data", table_coverage(onset_table(all_datasets=True))))
+        tables.append(("Table 6. The series scaled to Ptot, and rescaled to the coverage of the main data", table_coverage(limit_table(all_datasets=True))))
     for i, (title, t) in enumerate(tables, 1):
         t.to_csv(TAB / f"table{i}.tsv", sep="\t", index=False)
     markdown(tables)
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     figure_trend(medians)
     figure_reserve(r)
     figure_atp()
-    if onsets is not None:
-        for variant in onsets["variant"].unique():
-            figure_onset(onsets, variant)
+    if limits is not None:
+        for variant in limits["variant"].unique():
+            figure_limit(limits, variant)
     print(open(TAB / "tables.md").read())

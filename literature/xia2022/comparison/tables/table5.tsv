@@ -1,4 +1,4 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
 Kumar	built	CN4	0.1	1.115503298	0.0	32	0	1.1771931968572396	14.595148027312696	1.7224304505861276	QCR9 (ETC); TYR1 (Amino acid metabolism); TRP4 (Amino acid metabolism)
 Kumar	built	CN22	0.1	1.477902724	0.0	36	0	1.2012272653705252	14.320225487606375	1.5896746572762053	COR1 (ETC); YGL001C (other); TRP4 (Amino acid metabolism)
 Kumar	built	CN38	0.1	2.013614504	0.790476913	43	0	1.1931806345474407	10.459785055877788	1.7221577237086625	COR1 (ETC); YGL001C (other); TYR1 (Amino acid metabolism)

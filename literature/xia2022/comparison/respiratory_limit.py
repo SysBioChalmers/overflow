@@ -1,4 +1,4 @@
-"""Glucose uptake at which each condition's proteome forces carbon overflow.
+"""Respiratory limit: the highest glucose uptake a condition's measured proteome can respire completely.
 
 Each built ecModel is held at its dilution rate. Caps the pipeline raised
 because the measurement could not support growth (raised to minimum,
@@ -6,7 +6,7 @@ flexibilized) are lifted, since they carry no capacity information. Two
 variants for the caps the rate fit raised: kept as built ("built"), or put
 back to the measured abundance ("measured"). Maintenance ATP is free, so
 surplus glucose can be respired without overflow until a measured enzyme cap
-stops it; the onset is the largest uptake with no forced overflow.
+stops it; the respiratory limit is the largest uptake with no forced overflow.
 """
 import sys
 from pathlib import Path
@@ -24,7 +24,7 @@ from overflow import build_adapter
 from overflow.config import BIO_RXN, C_SOURCE, CO2_RXN, NGAM_RXN, O2_RXN
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "onset"
+OUT = HERE / "respiratory_limit"
 REPO = HERE.parents[2]
 XIA = HERE.parent
 DATASETS = {
@@ -34,7 +34,7 @@ DATASETS = {
 }
 OVERFLOW = {"r_1761": 2, "r_1634": 2, "r_1808": 3, "r_1793": 1}  # ethanol, acetate, glycerol, formate (C)
 OPEN = {CO2_RXN, "r_2100", "r_1832", "r_2111", *OVERFLOW}
-THRESHOLD = 0.05  # mmol C/gDW/h of forced overflow counted as onset
+THRESHOLD = 0.05  # mmol C/gDW/h of forced overflow tolerated at the limit
 
 uniprot = pd.read_csv(REPO / "data" / "uniprot.tsv", sep="\t")
 GENE = dict(zip(uniprot["Entry"], uniprot["Gene Names (ordered locus)"]))
@@ -87,7 +87,7 @@ def overflow_expression(model):
 
 
 def limiting(model, uptake):
-    """Measured caps that bind when overflow is minimised just past the onset."""
+    """Measured caps that bind when overflow is minimised just past the limit."""
     glc = model.reactions.get_by_id(C_SOURCE)
     with model:
         glc.bounds = (-uptake, -uptake)
@@ -121,7 +121,7 @@ def run(dataset, root, cond, variant):
                caps_lifted=lifted, caps_restored=restored, uptake_min=umin, uptake_max=umax)
     curve = []
     if not np.isfinite(umin):
-        row.update(onset=float("nan"), limiting="infeasible")
+        row.update(respiratory_limit=float("nan"), limiting="infeasible")
         return row, curve
 
     with model:
@@ -129,11 +129,11 @@ def run(dataset, root, cond, variant):
         model.add_cons_vars(model.problem.Constraint(overflow_expression(model), ub=THRESHOLD, name="no_overflow"))
         model.objective = {glc: 1.0}
         model.objective.direction = "min"
-        onset = -model.slim_optimize(error_value=float("nan"))
-    hits = limiting(model, min(onset * 1.02, umax)) if np.isfinite(onset) and onset < umax - 1e-6 else []
-    row.update(onset=onset, limiting="; ".join(label(p) for p in hits) or "none (window end)")
+        limit = -model.slim_optimize(error_value=float("nan"))
+    hits = limiting(model, min(limit * 1.02, umax)) if np.isfinite(limit) and limit < umax - 1e-6 else []
+    row.update(respiratory_limit=limit, limiting="; ".join(label(p) for p in hits) or "none (window end)")
 
-    for u in np.linspace(umin, min(umax, 3.0 * max(onset, cond.glucose)), 30):
+    for u in np.linspace(umin, min(umax, 3.0 * max(limit, cond.glucose)), 30):
         with model:
             glc.bounds = (-u, -u)
             model.objective = model.problem.Objective(overflow_expression(model), direction="min")
@@ -151,6 +151,6 @@ if __name__ == "__main__":
     cond = conditions(root, names)[name]
     row, curve = run(dataset, root, cond, variant)
     OUT.mkdir(exist_ok=True)
-    pd.DataFrame([row]).to_csv(OUT / f"onset_{dataset}_{name}_{variant}.tsv", sep="\t", index=False)
+    pd.DataFrame([row]).to_csv(OUT / f"limit_{dataset}_{name}_{variant}.tsv", sep="\t", index=False)
     pd.DataFrame(curve).to_csv(OUT / f"curve_{dataset}_{name}_{variant}.tsv", sep="\t", index=False)
     print(pd.DataFrame([row]).T.to_string())

@@ -190,8 +190,8 @@ Each step reads the models the previous one wrote, so `--models-dir` and
 
 [`literature/xia2022/`](literature/xia2022/README.md) runs the analysis on three
 conditions of the glucose-limited chemostat series of Xia et al. (2022) and
-compares them with `results/`, including the glucose uptake at which each
-proteome forces overflow.
+compares them with `results/`, including each proteome's respiratory limit:
+the highest glucose uptake it can respire completely.
 
 ## Tests
 

@@ -46,12 +46,12 @@ export XIA_DATA=$X/coverage/data   # then the four steps above with $X/coverage/
 `comparison/` puts both datasets side by side. It needs the ecModels of both runs, so build the main ones first (`python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08 --block r_2129`).
 
 ```bash
-for c in CN4 CN22 CN38 CN75 hGR; do for v in built measured; do python $X/comparison/onset.py Kumar $c $v; done; done
-for c in mu010 mu028 mu033;      do for v in built measured; do python $X/comparison/onset.py Xia $c $v; python $X/comparison/onset.py XiaCoverage $c $v; done; done
+for c in CN4 CN22 CN38 CN75 hGR; do for v in built measured; do python $X/comparison/respiratory_limit.py Kumar $c $v; done; done
+for c in mu010 mu028 mu033;      do for v in built measured; do python $X/comparison/respiratory_limit.py Xia $c $v; python $X/comparison/respiratory_limit.py XiaCoverage $c $v; done; done
 python $X/comparison/figures.py
 ```
 
-`onset.py` finds the glucose uptake above which a condition's proteome forces carbon overflow. The ecModel is held at the dilution rate with maintenance ATP free, so surplus glucose can be respired until a measured enzyme cap stops it. Caps the pipeline raised so that the model could grow (raised to minimum, flexibilized) carry no capacity information and are lifted. Caps the rate fit raised are kept as built (`built`), or put back to the measured abundance (`measured`). The onset is the largest uptake with no more than 0.05 mmol C/gDW/h of forced ethanol, acetate, glycerol and formate. The curves and onsets are in `comparison/onset/`.
+`respiratory_limit.py` finds a condition's respiratory limit: the highest glucose uptake its measured proteome can respire completely at the condition's growth rate. Above it, the model has to secrete overflow carbon. The ecModel is held at the dilution rate with maintenance ATP free, so surplus glucose can be respired until a measured enzyme cap stops it. Caps the pipeline raised so that the model could grow (raised to minimum, flexibilized) carry no capacity information and are lifted. Caps the rate fit raised are kept as built (`built`), or put back to the measured abundance (`measured`). The limit is the largest uptake with no more than 0.05 mmol C/gDW/h of forced ethanol, acetate, glycerol and formate. The curves and limits are in `comparison/respiratory_limit/`. A condition is predicted to overflow when its measured glucose uptake exceeds its limit; the onset of overflow itself is the measured physiology.
 
 | Output | Contents |
 |---|---|
@@ -59,5 +59,5 @@ python $X/comparison/figures.py
 | `figures/fig2_usage_vs_uptake` | Median capacity usage per system against measured glucose uptake. |
 | `figures/fig3_proteome_reserve` | Enzyme mass used in the simulation against the measured capacity, per system. |
 | `figures/fig4_atp_budget` | Sampled ATP supply and demand, and the respiratory share of ATP. |
-| `figures/fig5_overflow_onset_{built,measured}` | Least overflow the proteome allows against glucose uptake, with the predicted onsets and the measured byproduct carbon. |
-| `tables/tables.md` | Tables 1–6 (also as `table<n>.tsv`): conditions and fit, median capacity usage, unused capacity, ATP and redox budget, overflow onset, and the coverage check. |
+| `figures/fig5_respiratory_limit_{built,measured}` | Least overflow the proteome allows against glucose uptake, with the respiratory limits and the measured byproduct carbon. |
+| `tables/tables.md` | Tables 1–6 (also as `table<n>.tsv`): conditions and fit, median capacity usage, unused capacity, ATP and redox budget, respiratory limit, and the coverage check. |
