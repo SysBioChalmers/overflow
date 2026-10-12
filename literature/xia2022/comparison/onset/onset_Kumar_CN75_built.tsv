@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Kumar	built	CN75	0.1	3.227279363	2.282585358	40	0	1.2367190887787696	9.032412837610249	1.815086552048958	RPE1 (PP shunt); KGD1 (TCA cycle); YJR078W (other)

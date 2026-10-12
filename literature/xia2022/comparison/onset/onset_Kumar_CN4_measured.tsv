@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Kumar	measured	CN4	0.1	1.115503298	0.0	32	4	1.1809967470787166	14.561414103280395	1.7224304505861294	QCR9 (ETC); TYR1 (Amino acid metabolism); TRP4 (Amino acid metabolism)

@@ -1,0 +1,4 @@
+condition	f	Ptot_measured	Ptot_rescaled	GAM	pool_mg_gDW	proteins_kept	model_enzymes_measured	raised_to_minimum	flexibilized	pool_increases	rates_relaxed	rates_added_mg	NGAM	NGAM_error	growth	glucose	CO2	O2	pool_used_mg_gDW
+mu010	0.5113	0.371	0.3926	55.3	200.7	1978	586	30	9	0	27	2.81	0.0	inf	0.10225	1.2815	3.0084	2.7113	43.4
+mu028	0.4928	0.391	0.4209	55.3	207.4	1957	580	51	25	0	33	9.85	0.0	0.162	0.28425	3.5198	9.3913	8.3349	126.4
+mu033	0.4696	0.419	0.4245	55.3	199.3	1795	559	47	24	0	36	20.25	0.0	0.1401	0.33375	5.4671	13.0211	9.3177	151.7

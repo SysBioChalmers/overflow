@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+XiaCoverage	built	mu028	0.28425	3.14269663461493	0.0	63	0	3.3449149375104272	11.713956175466208	3.7419023320920886	COR1 (ETC); YJR078W (other); MET22 (Amino acid metabolism)

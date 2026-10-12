@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+XiaCoverage	measured	mu010	0.10225	1.1441811165618	0.0	37	1	1.203221080537893	5.723400076528589	1.7226098115395398	RIP1 (ETC); YBR041W (other); YHR190W (other)

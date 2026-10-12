@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Xia	built	mu028	0.28425	3.14269663461493	0.0	53	0	3.3449149375104272	4.306626976547969	4.113106077497351	TYR1 (Amino acid metabolism); QCR2 (ETC); RPE1 (PP shunt)

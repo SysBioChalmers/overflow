@@ -1,0 +1,333 @@
+"""Draft figures and tables: the Kumar & Lahtvee results next to the Xia et al. (2022) rerun."""
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from overflow.plots import FONTS, LEGACY_COLOURS, capacity_usage_figure, _POINTS_PER_SIZE
+
+HERE = Path(__file__).resolve().parent
+FIG, TAB, OUT = HERE / "figures", HERE / "tables", HERE / "onset"
+REPO = HERE.parents[2]
+XIA = HERE.parent
+SETS = {
+    "Kumar": dict(root=REPO, conds=["CN4", "CN22", "CN38", "CN75", "hGR"],
+                  label="Kumar & Lahtvee", colour=LEGACY_COLOURS[1], marker="o"),
+    "Xia": dict(root=XIA, conds=["mu010", "mu028", "mu033"],
+                label="Xia et al. 2022", colour=LEGACY_COLOURS[2], marker="^"),
+}
+DISPLAY = {"mu010": "μ0.10", "mu028": "μ0.28", "mu033": "μ0.33"}
+ORDER = [c for s in SETS.values() for c in s["conds"]]
+SYSTEMS = ("Glycolysis", "TCA cycle", "ETC", "Ribosome")
+SUPPLEMENT = ("PP shunt", "THF cycle", "Nitrogen metabolism", "Amino acid metabolism")
+EXCHANGES = {"Glucose": "r_1714", "CO2": "r_1672", "Oxygen": "r_1992", "Ethanol": "r_1761"}
+TEXT, SMALL, LINE = 7.0, 5.6, 0.15 * _POINTS_PER_SIZE
+STYLE = {"font.family": FONTS, "pdf.fonttype": 42, "font.size": SMALL, "axes.linewidth": LINE,
+         "xtick.major.width": LINE, "ytick.major.width": LINE, "xtick.major.size": 2.75,
+         "ytick.major.size": 2.75, "axes.spines.top": False, "axes.spines.right": False,
+         "legend.frameon": False, "axes.labelsize": TEXT, "axes.titlesize": SMALL}
+
+
+def name(c):
+    return DISPLAY.get(c, c)
+
+
+def save(fig, stem):
+    for ext in ("pdf", "png"):
+        fig.savefig(FIG / f"{stem}.{ext}", dpi=300, facecolor="white")
+    plt.close(fig)
+
+
+def read(dataset, *parts):
+    return pd.read_csv(SETS[dataset]["root"].joinpath(*parts), sep="\t")
+
+
+def fermentation():
+    rows = []
+    for ds, s in SETS.items():
+        f = read(ds, "data", "fermentationData.txt")
+        f.insert(0, "dataset", ds)
+        rows.append(f[f["Condition"].isin(s["conds"])])
+    return pd.concat(rows).rename(columns={"Condition": "condition"}).set_index("condition")
+
+
+FERM = fermentation()
+
+
+def overflowing(c):
+    return pd.notna(FERM.loc[c, "Ethanol"]) and FERM.loc[c, "Ethanol"] > 0
+
+
+# ---------------------------------------------------------------- tables
+
+def table_conditions():
+    rows = []
+    for ds, s in SETS.items():
+        for c in s["conds"]:
+            flux = read(ds, "results", "modelSimulation", f"allFluxes_{c}.tsv").set_index("rxnID")["flux"]
+            gen = lambda kind: s["root"] / "results" / "modelGeneration" / f"{kind}_{c}.tsv"
+            relaxed = pd.read_csv(gen("relaxedEnzymes"), sep="\t") if gen("relaxedEnzymes").exists() else pd.DataFrame(columns=["added_mg_gDW"])
+            row = dict(dataset=SETS[ds]["label"], condition=name(c), D=FERM.loc[c, "D"], Ptot=FERM.loc[c, "Ptot"])
+            for ex, rid in EXCHANGES.items():
+                measured = FERM.loc[c, ex]
+                row[f"{ex} meas"] = 0.0 if pd.isna(measured) else measured
+                row[f"{ex} model"] = abs(flux.get(rid, 0.0))
+            row["caps raised to minimum"] = len(pd.read_csv(gen("minimumUsage"), sep="\t"))
+            row["caps flexibilized"] = len(pd.read_csv(gen("modifiedEnzymes"), sep="\t"))
+            row["caps relaxed for rates"] = len(relaxed)
+            row["mg/gDW added for rates"] = relaxed["added_mg_gDW"].sum()
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def table_medians():
+    k = read("Kumar", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
+    x = read("Xia", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
+    t = k.join(x).rename(columns=DISPLAY)
+    return t.loc[list(SYSTEMS) + list(SUPPLEMENT)].reset_index().rename(columns={"GOterm": "system"})
+
+
+def selected_fluxes():
+    k = read("Kumar", "results", "randomSampling", "selectedFluxes.tsv").set_index("Row")
+    x = read("Xia", "results", "randomSampling", "selectedFluxes.tsv").set_index("Row")
+    return k.join(x)
+
+
+def table_atp():
+    f = selected_fluxes()
+    rows = {
+        "glucose uptake": f.loc["rGlu"],
+        "ATP from ETC": f.loc["ETC_rATP"],
+        "ATP from glycolysis": f.loc["glycolysis_rATP"],
+        "ETC share of ATP supply (%)": 100 * f.loc["ETC_rATP"] / (f.loc["ETC_rATP"] + f.loc["glycolysis_rATP"]),
+        "ATP per glucose via ETC": f.loc["ETC_YATP_glu"],
+        "ATP for growth (GAEC)": f.loc["GAEC_rATP"],
+        "ATP not tied to growth (NGAM)": f.loc["NGAM_rATP"],
+        "ATP for other metabolism": f.loc["Metabolism_rATP"],
+        "pyruvate dehydrogenase": f.loc["rPDH"],
+        "isocitrate dehydrogenase (mito)": f.loc["rIDH"],
+        "external NADH dehydrogenase": f.loc["rNDE"],
+        "NADPH turnover (total)": f.loc["rNADP[tot]"],
+    }
+    return pd.DataFrame(rows).T[ORDER].rename(columns=DISPLAY).reset_index().rename(columns={"index": "flux (mmol/gDW/h)"})
+
+
+def reserve():
+    """Per system and condition: enzyme mass used and the measured cap, in mg/gDW."""
+    rows = []
+    for ds, s in SETS.items():
+        usage = read(ds, "results", "enzymeUsage", "enzymeUsages.tsv")
+        annotation = read("Kumar", "data", "selectedAnnotation.txt")
+        system = dict(zip(annotation.iloc[:, 0], annotation.iloc[:, 3]))
+        usage["system"] = usage["protID"].map(system)
+        for c in s["conds"]:
+            measured = usage[usage[f"UB_{c}"] < 1000]  # unmeasured enzymes draw on the pool, cap 1000
+            for sysname, g in measured.groupby("system"):
+                used, cap = g[f"absUse_{c}"].sum(), g[f"UB_{c}"].sum()
+                rows.append(dict(dataset=ds, condition=c, system=sysname, used=used, cap=cap))
+    return pd.DataFrame(rows)
+
+
+def table_reserve(r):
+    r = r[r["system"].isin(SYSTEMS)].copy()
+    r["unused (%)"] = 100 * (1 - r["used"] / r["cap"])
+    wide = r.pivot(index="system", columns="condition", values="unused (%)")[ORDER].loc[list(SYSTEMS)]
+    return wide.rename(columns=DISPLAY).reset_index()
+
+
+def table_coverage(onsets):
+    """The series as converted against the series rescaled to the main data's coverage."""
+    runs = {"Ptot": XIA, "coverage": XIA / "coverage"}
+    rows = []
+    for label, root in runs.items():
+        medians = pd.read_csv(root / "results" / "enzymeUsage" / "systemMedians.tsv", sep="\t").set_index("GOterm")
+        for c in SETS["Xia"]["conds"]:
+            row = dict(scaling=label, condition=name(c), glucose_measured=FERM.loc[c, "Glucose"],
+                       ethanol_measured=0.0 if pd.isna(FERM.loc[c, "Ethanol"]) else FERM.loc[c, "Ethanol"])
+            for system in ("ETC", "Ribosome", "Glycolysis"):
+                row[f"{system} median usage (%)"] = medians.loc[system, c]
+            if onsets is not None:
+                dataset = "Xia" if label == "Ptot" else "XiaCoverage"
+                for variant in ("built", "measured"):
+                    hit = onsets[(onsets["dataset"] == dataset) & (onsets["variant"] == variant) & (onsets["condition"] == c)]
+                    row[f"onset ({variant})"] = hit["onset"].iloc[0] if len(hit) else float("nan")
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def onset_table(all_datasets=False):
+    files = sorted(OUT.glob("onset_*.tsv"))
+    if not files:
+        return None
+    t = pd.concat(pd.read_csv(f, sep="\t") for f in files)
+    t = t[t["dataset"].isin(SETS)] if not all_datasets else t
+    t["condition"] = pd.Categorical(t["condition"], ORDER, ordered=True)
+    return t.sort_values(["variant", "condition"])
+
+
+# ---------------------------------------------------------------- figures
+
+def figure_usage(systems, stem):
+    k = read("Kumar", "results", "enzymeUsage", "capUsage.tsv")
+    x = read("Xia", "results", "enzymeUsage", "capUsage.tsv")
+    both = k.drop(columns=["GOterm"]).merge(x[["protID", "mu010", "mu028", "mu033"]], on="protID", how="outer")
+    both["GOterm"] = both["protID"].map(dict(zip(pd.concat([k, x])["protID"], pd.concat([k, x])["GOterm"])))
+    fig = capacity_usage_figure(both, systems=systems, conditions=ORDER, width=14 / 2.54, height=5 / 2.54)
+    for axis in fig.axes:
+        axis.axvline(5.5, color="#878787", linewidth=LINE, linestyle=(0, (2, 2)))
+        axis.set_xticklabels([name(c) for c in ORDER])
+    fig.text(0.985, 0.97, "CN: Kumar & Lahtvee   μ: Xia et al. 2022", ha="right", va="top", fontsize=SMALL, color="#4D4D4D")
+    save(fig, stem)
+
+
+def figure_trend(medians):
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(2, 4, figsize=(16 / 2.54, 8 / 2.54), sharex=True)
+        for axis, system in zip(axes.flat, list(SYSTEMS) + list(SUPPLEMENT)):
+            row = medians.set_index("system").loc[system]
+            for ds, s in SETS.items():
+                xs = [FERM.loc[c, "Glucose"] for c in s["conds"]]
+                ys = [row[name(c)] for c in s["conds"]]
+                order = np.argsort(xs)
+                axis.plot(np.array(xs)[order], np.array(ys)[order], color=s["colour"], linewidth=0.6)
+                for c, xv, yv in zip(s["conds"], xs, ys):
+                    axis.plot(xv, yv, s["marker"], markersize=3.5, color=s["colour"],
+                              markerfacecolor=s["colour"] if overflowing(c) else "white", markeredgewidth=0.6)
+            axis.set_title(system, color="#1A1A1A")
+            axis.set_ylim(-5, 105)
+            axis.set_yticks([0, 50, 100])
+        for axis in axes[1]:
+            axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
+        for axis in axes[:, 0]:
+            axis.set_ylabel("Median capacity usage (%)", fontsize=SMALL)
+        handles = [plt.Line2D([], [], color=s["colour"], marker=s["marker"], markersize=3.5, linewidth=0.6, label=s["label"]) for s in SETS.values()]
+        handles.append(plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", markerfacecolor="#4D4D4D", label="ethanol secreted"))
+        handles.append(plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", markerfacecolor="white", label="no ethanol"))
+        fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=SMALL, bbox_to_anchor=(0.5, 0.0))
+        fig.subplots_adjust(left=0.08, right=0.99, top=0.93, bottom=0.2, hspace=0.45, wspace=0.3)
+        save(fig, "fig2_usage_vs_uptake")
+
+
+def figure_reserve(r):
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 4, figsize=(16 / 2.54, 5.5 / 2.54))
+        for index, (axis, system) in enumerate(zip(axes, SYSTEMS)):
+            sub = r[r["system"] == system].set_index("condition").loc[ORDER]
+            xs = np.arange(len(ORDER)) + np.array([0] * 5 + [0.6] * 3)
+            colour = LEGACY_COLOURS[index]
+            axis.bar(xs, sub["cap"], width=0.75, color="white", edgecolor=colour, linewidth=0.35 * _POINTS_PER_SIZE)
+            axis.bar(xs, sub["used"], width=0.75, color=colour, edgecolor=colour, linewidth=0.35 * _POINTS_PER_SIZE)
+            axis.set_xticks(xs)
+            axis.set_xticklabels([name(c) for c in ORDER], rotation=90)
+            axis.set_title(system, color="#1A1A1A")
+        axes[0].set_ylabel("Enzyme (mg/gDW)", fontsize=TEXT)
+        fig.text(0.99, 0.01, "filled: used in the simulation   outline: measured capacity", ha="right", fontsize=SMALL, color="#4D4D4D")
+        fig.subplots_adjust(left=0.07, right=0.99, top=0.9, bottom=0.3, wspace=0.35)
+        save(fig, "fig3_proteome_reserve")
+
+
+def figure_atp():
+    f = selected_fluxes()[ORDER]
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 3, figsize=(16 / 2.54, 5.5 / 2.54), gridspec_kw=dict(width_ratios=[1, 1, 0.9]))
+        xs = np.arange(len(ORDER)) + np.array([0] * 5 + [0.6] * 3)
+        labels = [name(c) for c in ORDER]
+        supply = [("ETC", f.loc["ETC_rATP"], LEGACY_COLOURS[2]), ("glycolysis", f.loc["glycolysis_rATP"], LEGACY_COLOURS[0])]
+        demand = [("growth (GAEC)", f.loc["GAEC_rATP"], LEGACY_COLOURS[1]), ("other metabolism", f.loc["Metabolism_rATP"], LEGACY_COLOURS[3]),
+                  ("not tied to growth", f.loc["NGAM_rATP"], "#E6E0D4")]
+        for axis, parts, title in ((axes[0], supply, "ATP supply"), (axes[1], demand, "ATP demand")):
+            bottom = np.zeros(len(ORDER))
+            for label, values, colour in parts:
+                axis.bar(xs, values.to_numpy(), bottom=bottom, width=0.75, color=colour, label=label, edgecolor="white", linewidth=0.2)
+                bottom += values.to_numpy()
+            axis.set_xticks(xs)
+            axis.set_xticklabels(labels, rotation=90)
+            axis.set_title(title, color="#1A1A1A")
+            axis.legend(fontsize=SMALL - 0.6, loc="upper left", handlelength=1)
+        axes[0].set_ylabel("ATP (mmol/gDW/h)", fontsize=TEXT)
+        axis = axes[2]
+        share = 100 * f.loc["ETC_rATP"] / (f.loc["ETC_rATP"] + f.loc["glycolysis_rATP"])
+        for ds, s in SETS.items():
+            xv = [FERM.loc[c, "Glucose"] for c in s["conds"]]
+            axis.plot(xv, share[s["conds"]], color=s["colour"], linewidth=0.6)
+            for c, x in zip(s["conds"], xv):
+                axis.plot(x, share[c], s["marker"], markersize=3.5, color=s["colour"],
+                          markerfacecolor=s["colour"] if overflowing(c) else "white", markeredgewidth=0.6)
+        axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
+        axis.set_ylabel("ATP from ETC (%)", fontsize=SMALL)
+        axis.set_title("Respiratory share", color="#1A1A1A")
+        axis.set_ylim(60, 100)
+        handles = [plt.Line2D([], [], color=s["colour"], marker=s["marker"], markersize=3.5, linewidth=0.6, label=s["label"]) for s in SETS.values()]
+        axis.legend(handles=handles, fontsize=SMALL - 0.6, loc="lower left")
+        fig.subplots_adjust(left=0.07, right=0.99, top=0.9, bottom=0.27, wspace=0.4)
+        save(fig, "fig4_atp_budget")
+
+
+def figure_onset(onsets, variant):
+    curves = pd.concat(pd.read_csv(f, sep="\t") for f in OUT.glob(f"curve_*_{variant}.tsv") if f.stat().st_size > 1)
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 2, figsize=(14 / 2.54, 5.5 / 2.54), sharey=True)
+        palette = dict(zip(ORDER, ["#CBBBA0", "#A08F6E", "#6E5F45", "#1D1D1B", "#878787", "#9CC3E6", "#1D71B8", "#0B3B66"]))
+        onset = onsets[onsets["variant"] == variant].set_index("condition")["onset"]
+        axes[0].axvspan(1.7, 2.3, color="#E6E0D4", linewidth=0, zorder=0)
+        axes[0].text(2.0, 13.2, "reported\nonset", ha="center", va="top", fontsize=SMALL - 0.6, color="#6E5F45")
+        for axis, (ds, s) in zip(axes, SETS.items()):
+            for c in s["conds"]:
+                cur = curves[(curves["dataset"] == ds) & (curves["condition"] == c)].sort_values("glucose")
+                axis.plot(cur["glucose"], cur["forced_overflow_C"], color=palette[c], linewidth=0.8, label=name(c))
+                if np.isfinite(onset.get(c, np.nan)):
+                    axis.plot(onset[c], -0.6, marker="^", markersize=3, color=palette[c], clip_on=False)
+                measured_c = sum(w * (0 if pd.isna(FERM.loc[c, ex]) else FERM.loc[c, ex])
+                                 for ex, w in (("Ethanol", 2), ("Acetate", 2), ("Glycerol", 3), ("Formate", 1)))
+                axis.plot(FERM.loc[c, "Glucose"], measured_c, "o", markersize=3.5, color=palette[c],
+                          markerfacecolor=palette[c] if overflowing(c) else "white", markeredgewidth=0.7)
+            axis.set_title(s["label"], color="#1A1A1A")
+            axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
+            axis.set_xlim(0.5, 7)
+            axis.set_ylim(-1, 14)
+            axis.legend(fontsize=SMALL - 0.6, loc="upper left", handlelength=1.2)
+        axes[0].set_ylabel("Forced overflow (mmol C/gDW/h)", fontsize=SMALL)
+        fig.text(0.99, 0.01, "lines: least overflow the proteome allows at the condition's growth rate   ▲: predicted onset   points: measured byproduct C",
+                 ha="right", fontsize=SMALL - 0.6, color="#4D4D4D")
+        fig.subplots_adjust(left=0.09, right=0.99, top=0.9, bottom=0.25, wspace=0.12)
+        save(fig, f"fig5_overflow_onset_{variant}")
+
+
+def markdown(tables):
+    lines = []
+    for title, t in tables:
+        lines += [f"## {title}", "", t.to_markdown(index=False, floatfmt=".3g"), ""]
+    (TAB / "tables.md").write_text("\n".join(lines))
+
+
+if __name__ == "__main__":
+    FIG.mkdir(exist_ok=True)
+    TAB.mkdir(exist_ok=True)
+    medians = table_medians()
+    r = reserve()
+    tables = [
+        ("Table 1. Conditions, measured and modelled exchange rates (mmol/gDW/h), and the caps the pipeline changed", table_conditions()),
+        ("Table 2. Median capacity usage per system (%)", medians),
+        ("Table 3. Unused measured capacity per system (% of the summed caps of measured enzymes)", table_reserve(r)),
+        ("Table 4. Sampled ATP and redox budget (mean over samples, mmol/gDW/h)", table_atp()),
+    ]
+    onsets = onset_table()
+    if onsets is not None:
+        tables.append(("Table 5. Glucose uptake at which the proteome forces overflow (mmol/gDW/h)", onsets))
+    if (XIA / "coverage" / "results").exists():
+        tables.append(("Table 6. The series scaled to Ptot, and rescaled to the coverage of the main data", table_coverage(onset_table(all_datasets=True))))
+    for i, (title, t) in enumerate(tables, 1):
+        t.to_csv(TAB / f"table{i}.tsv", sep="\t", index=False)
+    markdown(tables)
+    figure_usage(SYSTEMS, "fig1_capacity_usage")
+    figure_usage(SUPPLEMENT, "figS1_capacity_usage_supplement")
+    figure_trend(medians)
+    figure_reserve(r)
+    figure_atp()
+    if onsets is not None:
+        for variant in onsets["variant"].unique():
+            figure_onset(onsets, variant)
+    print(open(TAB / "tables.md").read())

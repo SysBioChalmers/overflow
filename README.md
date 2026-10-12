@@ -33,6 +33,7 @@ unavailable solver is an error, not a silent switch.
 | `tests/` | Test suite |
 | `results/` | Output tables and figures |
 | `legacy_matlab/` | The GECKO 2 MATLAB implementation and its results |
+| `literature/` | The analysis run on published datasets, and their comparison with `results/` |
 
 ## Experimental data
 
@@ -184,6 +185,13 @@ rebuild in a few minutes.
 
 Each step reads the models the previous one wrote, so `--models-dir` and
 `--results-dir` keep a run self-contained.
+
+## Published datasets
+
+[`literature/xia2022/`](literature/xia2022/README.md) runs the analysis on three
+conditions of the glucose-limited chemostat series of Xia et al. (2022) and
+compares them with `results/`, including the glucose uptake at which each
+proteome forces overflow.
 
 ## Tests
 

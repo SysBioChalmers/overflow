@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+XiaCoverage	measured	mu028	0.28425	3.14269663461493	0.0	63	4	3.3514955982950925	11.713956175466231	3.7400647117512533	RIP1 (ETC); YJR078W (other); MET22 (Amino acid metabolism)

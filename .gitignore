@@ -59,3 +59,6 @@ dist/
 # Solver
 gurobi.env
 gurobi.log
+
+# Built ecModels of the literature datasets
+literature/**/models/

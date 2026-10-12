@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Kumar	built	CN38	0.1	2.013614504	0.790476913	43	0	1.1931806345474407	10.459785055877788	1.7221577237086625	COR1 (ETC); YGL001C (other); TYR1 (Amino acid metabolism)

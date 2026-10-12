@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Kumar	built	CN22	0.1	1.477902724	0.0	36	0	1.2012272653705252	14.320225487606375	1.5896746572762053	COR1 (ETC); YGL001C (other); TRP4 (Amino acid metabolism)

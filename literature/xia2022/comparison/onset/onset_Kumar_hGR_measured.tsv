@@ -1,0 +1,2 @@
+dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	onset	limiting
+Kumar	measured	hGR	0.29	5.415584674	3.680414594	72	6	3.466246553408101	14.857428419044542	4.22538645706021	YHR116W (other); COX6 (ETC); YER099C (other)
