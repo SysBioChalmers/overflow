@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-XiaCoverage	built	mu010	0.10225	1.1441811165618	0.0	37	0	1.2032210805378933	5.723400076528591	1.7226098115395367	QCR6 (ETC); YBR041W (other); YHR190W (other)

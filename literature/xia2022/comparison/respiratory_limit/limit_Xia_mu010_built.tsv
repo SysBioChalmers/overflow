@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-Xia	built	mu010	0.10225	1.1441811165618	0.0	36	0	1.2031927699735032	7.184009022700883	1.9355482015166683	YBR041W (other); COR1 (ETC); TYR1 (Amino acid metabolism)

@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-XiaCoverage	built	mu033	0.33375	4.88134659826695	2.193290332967266	65	0	3.9274194300548415	13.319617484032996	4.223669454258747	QCR9 (ETC); TRP1 (Amino acid metabolism); YNR043W (other)

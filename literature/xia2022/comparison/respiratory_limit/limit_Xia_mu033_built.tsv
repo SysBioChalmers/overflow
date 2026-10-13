@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-Xia	built	mu033	0.33375	4.88134659826695	2.193290332967266	57	0	3.9298535958644916	16.44723020939062	4.677091183845315	YHR042W (other); COR1 (ETC); YJR078W (other)

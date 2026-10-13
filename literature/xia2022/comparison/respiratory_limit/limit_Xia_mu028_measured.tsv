@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-Xia	measured	mu028	0.28425	3.14269663461493	0.0	53	3	3.3488734874220265	4.306611106231614	4.113106077497301	TYR1 (Amino acid metabolism); COR1 (ETC); RPE1 (PP shunt)

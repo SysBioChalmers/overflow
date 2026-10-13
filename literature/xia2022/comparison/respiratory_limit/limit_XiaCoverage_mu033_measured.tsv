@@ -1,2 +1,0 @@
-dataset	variant	condition	D	glucose_measured	ethanol_measured	caps_lifted	caps_restored	uptake_min	uptake_max	respiratory_limit	limiting
-XiaCoverage	measured	mu033	0.33375	4.88134659826695	2.193290332967266	65	5	3.935320563329068	13.294189425918502	4.218783384702864	TRP1 (Amino acid metabolism); COR1 (ETC); YNR043W (other)

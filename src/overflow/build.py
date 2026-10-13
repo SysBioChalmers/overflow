@@ -345,6 +345,26 @@ def summary_table(results: list[BuildResult]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def update_summary(path: Path, summary: pd.DataFrame) -> pd.DataFrame:
+    """Write the rows of the conditions just built into the summary at ``path``.
+
+    Rows of conditions built by another call are kept, so building the
+    conditions one at a time gives the same table as building them together.
+    """
+    if path.exists():
+        previous = pd.read_csv(path, sep="\t")
+        kept = previous[~previous["condition"].isin(summary["condition"])]
+        summary = pd.concat([kept, summary], ignore_index=True)
+    rank = {name: i for i, name in enumerate(CONDITION_ORDER)}
+    summary = summary.sort_values(
+        "condition", key=lambda names: names.map(lambda name: rank.get(name, len(rank))),
+        kind="stable",
+    ).reset_index(drop=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary.to_csv(path, sep="\t", index=False)
+    return summary
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conditions", nargs="*", default=list(CONDITION_ORDER))
@@ -418,10 +438,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)
 
-    summary = summary_table(results)
-    args.results_dir.mkdir(parents=True, exist_ok=True)
-    summary.to_csv(args.results_dir / "modelGeneration" / "summary.tsv",
-                   sep="\t", index=False)
+    summary = update_summary(
+        args.results_dir / "modelGeneration" / "summary.tsv", summary_table(results)
+    )
     print()
     print(summary.to_string(index=False))
     return 0
