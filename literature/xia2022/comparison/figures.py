@@ -1,4 +1,4 @@
-"""Draft figures and tables: the Kumar & Lahtvee results next to the Xia et al. (2022) rerun."""
+"""Figures and tables: this study next to the Xia et al. (2022) chemostat series."""
 from pathlib import Path
 
 import matplotlib
@@ -14,8 +14,8 @@ FIG, TAB, OUT = HERE / "figures", HERE / "tables", HERE / "respiratory_limit"
 REPO = HERE.parents[2]
 XIA = HERE.parent
 SETS = {
-    "Kumar": dict(root=REPO, conds=["CN4", "CN22", "CN38", "CN75", "hGR"],
-                  label="Kumar & Lahtvee", colour=LEGACY_COLOURS[1], marker="o"),
+    "ThisStudy": dict(root=REPO, conds=["CN4", "CN22", "CN38", "CN75", "hGR"],
+                      label="This study", colour=LEGACY_COLOURS[1], marker="o"),
     "Xia": dict(root=XIA, conds=["mu010", "mu028", "mu033"],
                 label="Xia et al. 2022", colour=LEGACY_COLOURS[2], marker="^"),
 }
@@ -36,8 +36,7 @@ def name(c):
 
 
 def save(fig, stem):
-    for ext in ("pdf", "png"):
-        fig.savefig(FIG / f"{stem}.{ext}", dpi=300, facecolor="white")
+    fig.savefig(FIG / f"{stem}.pdf", facecolor="white")
     plt.close(fig)
 
 
@@ -84,14 +83,14 @@ def table_conditions():
 
 
 def table_medians():
-    k = read("Kumar", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
+    k = read("ThisStudy", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
     x = read("Xia", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
     t = k.join(x).rename(columns=DISPLAY)
     return t.loc[list(SYSTEMS) + list(SUPPLEMENT)].reset_index().rename(columns={"GOterm": "system"})
 
 
 def selected_fluxes():
-    k = read("Kumar", "results", "randomSampling", "selectedFluxes.tsv").set_index("Row")
+    k = read("ThisStudy", "results", "randomSampling", "selectedFluxes.tsv").set_index("Row")
     x = read("Xia", "results", "randomSampling", "selectedFluxes.tsv").set_index("Row")
     return k.join(x)
 
@@ -120,7 +119,7 @@ def reserve():
     rows = []
     for ds, s in SETS.items():
         usage = read(ds, "results", "enzymeUsage", "enzymeUsages.tsv")
-        annotation = read("Kumar", "data", "selectedAnnotation.txt")
+        annotation = read("ThisStudy", "data", "selectedAnnotation.txt")
         system = dict(zip(annotation.iloc[:, 0], annotation.iloc[:, 3]))
         usage["system"] = usage["protID"].map(system)
         for c in s["conds"]:
@@ -139,7 +138,7 @@ def table_reserve(r):
 
 
 def table_coverage(limits):
-    """The series as converted against the series rescaled to the main data's coverage."""
+    """The series as converted against the series rescaled to the coverage of this study."""
     runs = {"Ptot": XIA, "coverage": XIA / "coverage"}
     rows = []
     for label, root in runs.items():
@@ -171,7 +170,7 @@ def limit_table(all_datasets=False):
 # ---------------------------------------------------------------- figures
 
 def figure_usage(systems, stem):
-    k = read("Kumar", "results", "enzymeUsage", "capUsage.tsv")
+    k = read("ThisStudy", "results", "enzymeUsage", "capUsage.tsv")
     x = read("Xia", "results", "enzymeUsage", "capUsage.tsv")
     both = k.drop(columns=["GOterm"]).merge(x[["protID", "mu010", "mu028", "mu033"]], on="protID", how="outer")
     both["GOterm"] = both["protID"].map(dict(zip(pd.concat([k, x])["protID"], pd.concat([k, x])["GOterm"])))
@@ -179,7 +178,7 @@ def figure_usage(systems, stem):
     for axis in fig.axes:
         axis.axvline(5.5, color="#878787", linewidth=LINE, linestyle=(0, (2, 2)))
         axis.set_xticklabels([name(c) for c in ORDER])
-    fig.text(0.985, 0.97, "CN: Kumar & Lahtvee   μ: Xia et al. 2022", ha="right", va="top", fontsize=SMALL, color="#4D4D4D")
+    fig.text(0.985, 0.97, "CN: this study   μ: Xia et al. 2022", ha="right", va="top", fontsize=SMALL, color="#4D4D4D")
     save(fig, stem)
 
 
@@ -293,7 +292,7 @@ def figure_limit(limits, variant):
         fig.text(0.99, 0.01, "lines: least overflow the proteome allows at the condition's growth rate   ▲: respiratory limit   points: measured byproduct C",
                  ha="right", fontsize=SMALL - 0.6, color="#4D4D4D")
         fig.subplots_adjust(left=0.09, right=0.99, top=0.9, bottom=0.25, wspace=0.12)
-        save(fig, f"fig5_respiratory_limit_{variant}")
+        save(fig, "fig5_respiratory_limit")
 
 
 def markdown(tables):
@@ -316,9 +315,10 @@ if __name__ == "__main__":
     ]
     limits = limit_table()
     if limits is not None:
-        tables.append(("Table 5. Respiratory limit: the highest glucose uptake the measured proteome can respire completely at the condition's growth rate (mmol/gDW/h)", limits))
+        tables.append(("Table 5. Respiratory limit: the highest glucose uptake the measured proteome can respire completely at the condition's growth rate (mmol/gDW/h)",
+                       limits.replace({"dataset": {k: v["label"] for k, v in SETS.items()}})))
     if (XIA / "coverage" / "results").exists():
-        tables.append(("Table 6. The series scaled to Ptot, and rescaled to the coverage of the main data", table_coverage(limit_table(all_datasets=True))))
+        tables.append(("Table 6. The Xia series scaled to Ptot, and rescaled to the coverage of this study", table_coverage(limit_table(all_datasets=True))))
     for i, (title, t) in enumerate(tables, 1):
         t.to_csv(TAB / f"table{i}.tsv", sep="\t", index=False)
     markdown(tables)
@@ -328,6 +328,5 @@ if __name__ == "__main__":
     figure_reserve(r)
     figure_atp()
     if limits is not None:
-        for variant in limits["variant"].unique():
-            figure_limit(limits, variant)
+        figure_limit(limits, "built")
     print(open(TAB / "tables.md").read())

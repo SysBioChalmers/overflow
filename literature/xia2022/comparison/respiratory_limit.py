@@ -28,7 +28,7 @@ OUT = HERE / "respiratory_limit"
 REPO = HERE.parents[2]
 XIA = HERE.parent
 DATASETS = {
-    "Kumar": (REPO, ("CN4", "CN22", "CN38", "CN75", "hGR")),  # this repository's data and results
+    "ThisStudy": (REPO, ("CN4", "CN22", "CN38", "CN75", "hGR")),
     "Xia": (XIA, ("mu010", "mu028", "mu033")),
     "XiaCoverage": (XIA / "coverage", ("mu010", "mu028", "mu033")),
 }

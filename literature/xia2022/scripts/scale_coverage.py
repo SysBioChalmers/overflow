@@ -1,8 +1,8 @@
-"""Write the series rescaled to the proteome coverage of the main data.
+"""Write the series rescaled to the proteome coverage of this study.
 
-The series attributes all of Ptot to measured proteins; in the main data the
-measured proteins add up to less. This scales every abundance by the main
-data's mean measured fraction of Ptot, so the unmeasured share is the same.
+The series attributes all of Ptot to measured proteins; in this study the
+measured proteins add up to less. This scales every abundance by this
+study's mean measured fraction of Ptot, so the unmeasured share is the same.
 
 usage: scale_coverage.py OUT_DIR
 """
@@ -34,10 +34,10 @@ def measured_fraction(proteomics: pd.DataFrame, ptot: dict[str, float]) -> pd.Se
     return pd.Series({c: float(np.mean(v)) for c, v in fractions.items()})
 
 
-main_ferm = pd.read_csv(REPO / "data" / "fermentationData.txt", sep="\t")
-main = measured_fraction(pd.read_csv(REPO / "data" / "abs_proteomics.txt", sep="\t"),
-                         dict(zip(main_ferm["Condition"], main_ferm["Ptot"])))
-coverage = float(main.mean())
+study_ferm = pd.read_csv(REPO / "data" / "fermentationData.txt", sep="\t")
+study = measured_fraction(pd.read_csv(REPO / "data" / "abs_proteomics.txt", sep="\t"),
+                         dict(zip(study_ferm["Condition"], study_ferm["Ptot"])))
+coverage = float(study.mean())
 
 xia_ferm = pd.read_csv(HERE / "data" / "fermentationData.txt", sep="\t")
 xia = pd.read_csv(HERE / "data" / "abs_proteomics.txt", sep="\t")
@@ -50,6 +50,6 @@ xia.to_csv(out / "abs_proteomics.txt", sep="\t", index=False, na_rep="NA", float
 for name in ("fermentationData.txt", "ribosome_core.tsv"):
     shutil.copy(HERE / "data" / name, out / name)
 
-print("main data, measured fraction of Ptot:", main.round(3).to_dict())
+print("this study, measured fraction of Ptot:", study.round(3).to_dict())
 print(f"coverage applied: {coverage:.4f}")
 print("series before:", before.round(3).to_dict(), "after:", after.round(3).to_dict())

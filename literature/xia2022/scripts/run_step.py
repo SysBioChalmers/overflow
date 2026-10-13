@@ -36,7 +36,7 @@ import overflow.proteomics as proteomics  # noqa: E402
 
 proteomics.read_proteomics.__defaults__ = (config.PROTEOMICS_DATA,)
 
-#: The core ribosome: the 48 subunits of the main run, with the paralog this
+#: The core ribosome: the 48 subunits of this study, with the paralog this
 #: dataset quantifies at the seven positions where it measures the other one
 #: (data/ribosome_core.tsv). Re-selecting the core by abundance on this
 #: dataset gives 80 subunits, as the paralog groups it quantifies cross the
