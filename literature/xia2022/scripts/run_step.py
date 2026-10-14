@@ -4,17 +4,13 @@ Points overflow.config at this folder's data/, models/ and results/ and at its
 condition names before the step's module is imported, then calls its main().
 
 usage: python literature/xia2022/scripts/run_step.py <module> [args...]
-
-XIA_DATA names another data folder of the same layout, such as the rescaled
-one of the coverage check.
 """
 import importlib
-import os
 import sys
 from pathlib import Path
 
 RUN = Path(__file__).resolve().parents[1]
-DATA = Path(os.environ.get("XIA_DATA", RUN / "data")).resolve()
+DATA = RUN / "data"
 NAMES = ("mu010", "mu028", "mu033")
 
 import overflow.config as config  # noqa: E402

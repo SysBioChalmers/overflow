@@ -2,36 +2,40 @@
 
 | dataset         | condition   |     D |   Ptot |   Glucose meas |   Glucose model |   CO2 meas |   CO2 model |   Oxygen meas |   Oxygen model |   Ethanol meas |   Ethanol model |   caps raised to minimum |   caps flexibilized |   caps relaxed for rates |   mg/gDW added for rates |
 |:----------------|:------------|------:|-------:|---------------:|----------------:|-----------:|------------:|--------------:|---------------:|---------------:|----------------:|-------------------------:|--------------------:|-------------------------:|-------------------------:|
-| This study      | CN4         | 0.1   |  0.5   |           1.12 |            1.2  |       3.09 |        3.1  |          2.93 |           2.73 |           0    |           0     |                       26 |                  23 |                       27 |                     2.05 |
-| This study      | CN22        | 0.1   |  0.55  |           1.48 |            1.6  |       4.07 |        4.4  |          4.19 |           3.85 |           0    |           0.01  |                       28 |                   8 |                       23 |                     6.3  |
-| This study      | CN38        | 0.1   |  0.33  |           2.01 |            2.17 |       6.3  |        5.8  |          5.17 |           4.95 |           0.79 |           0.747 |                       35 |                  13 |                       47 |                    22.4  |
-| This study      | CN75        | 0.1   |  0.27  |           3.23 |            3.49 |       7.88 |        8.51 |          6.66 |           6.13 |           2.28 |           2.1   |                       35 |                  11 |                       54 |                    36.2  |
-| This study      | hGR         | 0.29  |  0.41  |           5.42 |            5.85 |      11    |       11.9  |          7.66 |           8.17 |           3.68 |           3.39  |                       55 |                  53 |                       48 |                    18.2  |
-| Xia et al. 2022 | μ0.10       | 0.102 |  0.371 |           1.14 |            1.28 |       2.69 |        3.01 |          2.42 |           2.71 |           0    |           0     |                       28 |                  11 |                       27 |                     2.47 |
-| Xia et al. 2022 | μ0.28       | 0.284 |  0.391 |           3.14 |            3.52 |       8.54 |        9.39 |          7.98 |           8.34 |           0    |           0     |                       44 |                  20 |                       30 |                     8.89 |
-| Xia et al. 2022 | μ0.33       | 0.334 |  0.419 |           4.88 |            5.47 |      12.2  |       13.1  |          9.64 |           9.36 |           2.19 |           1.93  |                       42 |                  19 |                       33 |                    18.1  |
+| This study      | CN4         | 0.1   |  0.5   |           1.12 |            1.2  |       3.09 |        3.1  |          2.93 |           2.73 |           0    |           0     |                        9 |                   6 |                       10 |                    1.73  |
+| This study      | CN22        | 0.1   |  0.55  |           1.48 |            1.6  |       4.07 |        4.4  |          4.19 |           3.85 |           0    |           0     |                       11 |                   4 |                        6 |                    0.934 |
+| This study      | CN38        | 0.1   |  0.33  |           2.01 |            2.17 |       6.3  |        5.8  |          5.17 |           4.95 |           0.79 |           0.747 |                       18 |                  10 |                       13 |                    7.29  |
+| This study      | CN75        | 0.1   |  0.27  |           3.23 |            3.49 |       7.88 |        8.51 |          6.66 |           6.13 |           2.28 |           2.1   |                       18 |                  10 |                       24 |                    9.31  |
+| This study      | hGR         | 0.29  |  0.41  |           5.42 |            5.85 |      11    |       11.9  |          7.66 |           8.27 |           3.68 |           3.39  |                       24 |                  16 |                       21 |                    7.54  |
+| Xia et al. 2022 | μ0.10       | 0.102 |  0.371 |           1.14 |            1.28 |       2.69 |        3.01 |          2.42 |           2.71 |           0    |           0     |                       11 |                   8 |                       10 |                    2.23  |
+| Xia et al. 2022 | μ0.28       | 0.284 |  0.391 |           3.14 |            3.52 |       8.54 |        9.39 |          7.98 |           8.34 |           0    |           0     |                       27 |                  20 |                       17 |                    5.12  |
+| Xia et al. 2022 | μ0.33       | 0.334 |  0.419 |           4.88 |            5.47 |      12.2  |       13.2  |          9.64 |           9.57 |           2.19 |           1.93  |                       25 |                  20 |                       21 |                   13.1   |
 
-## Table 2. Median capacity usage per system (%)
+## Table 2. Capacity usage per system: enzyme mass used over the measured capacity of its enzymes (%)
 
 | system                |   CN4 |   CN22 |   CN38 |   CN75 |    hGR |   μ0.10 |   μ0.28 |   μ0.33 |
 |:----------------------|------:|-------:|-------:|-------:|-------:|--------:|--------:|--------:|
-| Glycolysis            |  1.68 |   2.99 |   5.77 |  11.4  |  28.4  |    2.9  |   19.9  |   30.6  |
-| TCA cycle             |  3.66 |   7.3  |   3.91 |   6.37 |   0.05 |    7.74 |    4.26 |    8.5  |
-| ETC                   | 40.6  |  66.2  | 100    | 100    | 100    |   43.1  |   66.6  |   65.2  |
-| Ribosome              | 26.3  |  29    |  47.3  |  57.3  |  74    |   33.6  |   64.8  |   64    |
-| PP shunt              | 11    |   0.83 |   0.03 |   0.2  |   1.84 |   19.1  |    6.7  |   11.3  |
-| THF cycle             |  4.03 |   5.95 |  18.7  |  16.9  |  18    |    3.19 |   11.7  |    9.95 |
-| Nitrogen metabolism   |  0.94 |   7.08 |   0.06 |   0.07 |   0.11 |    1.07 |    1.78 |    1.79 |
-| Amino acid metabolism |  1.3  |   2.02 |   3.12 |   5.46 |   7.79 |    1.33 |    6.58 |    7.44 |
+| Glycolysis            |  2.31 |   1.81 |   3.96 |   6.65 |  10.8  |    4.18 |    25.3 |    36.4 |
+| TCA cycle             |  8.5  |  16.2  |  31    |  45.5  |  25.7  |    8.4  |    16.8 |    20.6 |
+| ETC                   | 18.1  |  29.6  |  48.5  |  75.2  |  64.7  |   51.7  |    80.9 |    84.2 |
+| Ribosome              | 26.7  |  29.4  |  45.9  |  52.9  |  70.1  |   35.3  |    64.6 |    64.8 |
+| PP shunt              | 11    |   1.65 |   1.32 |   4.03 |   5.42 |   17.4  |    11   |    14   |
+| THF cycle             | 25.6  |  56.4  |  85.7  |  90    |  67.1  |   43.1  |    42   |    43.2 |
+| Nitrogen metabolism   |  0    |   2.49 | nan    | nan    | nan    |  nan    |   nan   |   nan   |
+| Amino acid metabolism | 10.4  |  11.5  |  20.7  |  30.1  |  24    |   13.8  |    23.8 |    25.8 |
 
-## Table 3. Unused measured capacity per system (% of the summed caps of measured enzymes)
+## Table 3. Enzyme mass used and measured capacity per system (mg/gDW)
 
-| system     |   CN4 |   CN22 |   CN38 |   CN75 |   hGR |   μ0.10 |   μ0.28 |   μ0.33 |
-|:-----------|------:|-------:|-------:|-------:|------:|--------:|--------:|--------:|
-| Glycolysis |  97.7 |   98.2 |   96   |  93.4  | 89.1  |    95.8 |    74.7 |    63.1 |
-| TCA cycle  |  91.5 |   83.7 |   69   |  54.1  | 74.8  |    91.6 |    83.2 |    80.1 |
-| ETC        |  51.1 |   30.3 |   12.9 |   3.62 |  4.75 |    59.1 |    30.8 |    29.5 |
-| Ribosome   |  73.3 |   70.4 |   53.6 |  47.1  | 29.6  |    64.7 |    35.7 |    35.5 |
+| system     | mg/gDW            |    CN4 |   CN22 |   CN38 |   CN75 |   hGR |   μ0.10 |   μ0.28 |   μ0.33 |
+|:-----------|:------------------|-------:|-------:|-------:|-------:|------:|--------:|--------:|--------:|
+| Glycolysis | used              |  1.59  |  1.35  |   1.84 |   2.6  |  4.02 |   1.66  |    7.34 |   12.2  |
+| Glycolysis | measured capacity | 68.8   | 74.7   |  46.4  |  39.1  | 37.2  |  39.8   |   29    |   33.4  |
+| TCA cycle  | used              |  0.865 |  1.24  |   1.52 |   1.48 |  2.24 |   0.773 |    2.55 |    2.77 |
+| TCA cycle  | measured capacity | 10.2   |  7.64  |   4.89 |   3.26 |  8.68 |   9.2   |   15.2  |   13.4  |
+| ETC        | used              |  0.646 |  0.915 |   1.17 |   1.27 |  1.96 |   2.2   |    6.34 |    7.28 |
+| ETC        | measured capacity |  3.58  |  3.1   |   2.42 |   1.69 |  3.03 |   4.25  |    7.84 |    8.64 |
+| Ribosome   | used              | 11.6   | 11.6   |  11.6  |  11.7  | 33.6  |  11.7   |   32.7  |   38.4  |
+| Ribosome   | measured capacity | 43.5   | 39.5   |  25.3  |  22.1  | 48    |  33.2   |   50.6  |   59.3  |
 
 ## Table 4. Sampled ATP and redox budget (mean over samples, mmol/gDW/h)
 
@@ -52,32 +56,32 @@
 
 ## Table 5. Respiratory limit: the highest glucose uptake the measured proteome can respire completely at the condition's growth rate (mmol/gDW/h)
 
-| dataset         | variant   | condition   |     D |   glucose_measured |   ethanol_measured |   caps_lifted |   caps_restored |   uptake_min |   uptake_max |   respiratory_limit | limiting                                                               |
-|:----------------|:----------|:------------|------:|-------------------:|-------------------:|--------------:|----------------:|-------------:|-------------:|--------------------:|:-----------------------------------------------------------------------|
-| This study      | built     | CN4         | 0.1   |               1.12 |               0    |            32 |               0 |         1.18 |        14.6  |                1.72 | QCR9 (ETC); TYR1 (Amino acid metabolism); TRP4 (Amino acid metabolism) |
-| This study      | built     | CN22        | 0.1   |               1.48 |               0    |            36 |               0 |         1.2  |        14.3  |                1.59 | COR1 (ETC); YGL001C (other); TRP4 (Amino acid metabolism)              |
-| This study      | built     | CN38        | 0.1   |               2.01 |               0.79 |            43 |               0 |         1.19 |        10.5  |                1.72 | COR1 (ETC); YGL001C (other); TYR1 (Amino acid metabolism)              |
-| This study      | built     | CN75        | 0.1   |               3.23 |               2.28 |            40 |               0 |         1.24 |         9.03 |                1.82 | RPE1 (PP shunt); KGD1 (TCA cycle); YJR078W (other)                     |
-| This study      | built     | hGR         | 0.29  |               5.42 |               3.68 |            72 |               0 |         3.46 |        14.9  |                4.23 | YJL003W (other); COX13 (ETC); YER099C (other)                          |
-| Xia et al. 2022 | built     | mu010       | 0.102 |               1.14 |               0    |            36 |               0 |         1.2  |         7.18 |                1.94 | YBR041W (other); COR1 (ETC); TYR1 (Amino acid metabolism)              |
-| Xia et al. 2022 | built     | mu028       | 0.284 |               3.14 |               0    |            53 |               0 |         3.34 |         4.31 |                4.11 | TYR1 (Amino acid metabolism); QCR2 (ETC); RPE1 (PP shunt)              |
-| Xia et al. 2022 | built     | mu033       | 0.334 |               4.88 |               2.19 |            57 |               0 |         3.93 |        16.4  |                4.68 | YHR042W (other); COR1 (ETC); YJR078W (other)                           |
-| This study      | measured  | CN4         | 0.1   |               1.12 |               0    |            32 |               4 |         1.18 |        14.6  |                1.72 | QCR9 (ETC); TYR1 (Amino acid metabolism); TRP4 (Amino acid metabolism) |
-| This study      | measured  | CN22        | 0.1   |               1.48 |               0    |            36 |               3 |         1.2  |        14.3  |                1.59 | COR1 (ETC); YGL001C (other); TRP4 (Amino acid metabolism)              |
-| This study      | measured  | CN38        | 0.1   |               2.01 |               0.79 |            43 |              21 |         1.19 |        10.5  |                1.45 | COR1 (ETC); YGL001C (other); TYR1 (Amino acid metabolism)              |
-| This study      | measured  | CN75        | 0.1   |               3.23 |               2.28 |            40 |              27 |         3.18 |         9.02 |              nan    | none (window end)                                                      |
-| This study      | measured  | hGR         | 0.29  |               5.42 |               3.68 |            72 |               6 |         3.47 |        14.9  |                4.23 | YHR116W (other); COX6 (ETC); YER099C (other)                           |
-| Xia et al. 2022 | measured  | mu010       | 0.102 |               1.14 |               0    |            36 |               1 |         1.2  |         7.18 |                1.94 | QCR7 (ETC); YBR041W (other); TYR1 (Amino acid metabolism)              |
-| Xia et al. 2022 | measured  | mu028       | 0.284 |               3.14 |               0    |            53 |               3 |         3.35 |         4.31 |                4.11 | TYR1 (Amino acid metabolism); COR1 (ETC); RPE1 (PP shunt)              |
-| Xia et al. 2022 | measured  | mu033       | 0.334 |               4.88 |               2.19 |            57 |               4 |         3.93 |        16.4  |                4.68 | YJR078W (other); YHR042W (other); COB (ETC)                            |
+| dataset         | variant   | condition   |     D |   glucose_measured |   ethanol_measured |   caps_lifted |   caps_restored |   uptake_min |   uptake_max |   respiratory_limit | limiting                                                          |
+|:----------------|:----------|:------------|------:|-------------------:|-------------------:|--------------:|----------------:|-------------:|-------------:|--------------------:|:------------------------------------------------------------------|
+| This study      | built     | CN4         | 0.1   |               1.12 |               0    |            15 |               0 |         1.18 |        14.6  |                2.65 | YMR31 (TCA cycle); RKI1 (PP shunt); TRP4 (Amino acid metabolism)  |
+| This study      | built     | CN22        | 0.1   |               1.48 |               0    |            15 |               0 |         1.34 |        13.7  |                2.05 | YMR31 (TCA cycle); RKI1 (PP shunt); YGL001C (other)               |
+| This study      | built     | CN38        | 0.1   |               2.01 |               0.79 |            24 |               0 |         1.24 |        10.1  |                1.66 | YJR078W (other); YNL071W (other); TYR1 (Amino acid metabolism)    |
+| This study      | built     | CN75        | 0.1   |               3.23 |               2.28 |            23 |               0 |         1.34 |         8.67 |              nan    | none (window end)                                                 |
+| This study      | built     | hGR         | 0.29  |               5.42 |               3.68 |            35 |               0 |         4.33 |        14.9  |              nan    | none (window end)                                                 |
+| Xia et al. 2022 | built     | mu010       | 0.102 |               1.14 |               0    |            18 |               0 |         1.2  |         7.18 |                1.57 | COX9 (ETC); YBR041W (other); TYR1 (Amino acid metabolism)         |
+| Xia et al. 2022 | built     | mu028       | 0.284 |               3.14 |               0    |            38 |               0 |         3.36 |         4.29 |                3.91 | QCR9 (ETC); TYR1 (Amino acid metabolism); YPL028W (other)         |
+| Xia et al. 2022 | built     | mu033       | 0.334 |               4.88 |               2.19 |            42 |               0 |         4.06 |        16.4  |                4.45 | QCR9 (ETC); YHR042W (other); YJR078W (other)                      |
+| This study      | measured  | CN4         | 0.1   |               1.12 |               0    |            15 |               4 |         1.18 |        14.6  |                2.63 | YMR31 (TCA cycle); TRP4 (Amino acid metabolism); ICL1 (TCA cycle) |
+| This study      | measured  | CN22        | 0.1   |               1.48 |               0    |            15 |               3 |         1.34 |        13.7  |                2.05 | YMR31 (TCA cycle); RKI1 (PP shunt); YGL001C (other)               |
+| This study      | measured  | CN38        | 0.1   |               2.01 |               0.79 |            24 |               5 |         1.36 |        10.1  |              nan    | none (window end)                                                 |
+| This study      | measured  | CN75        | 0.1   |               3.23 |               2.28 |            23 |              14 |         2.18 |         8.67 |              nan    | none (window end)                                                 |
+| This study      | measured  | hGR         | 0.29  |               5.42 |               3.68 |            35 |              11 |         7.33 |        14.9  |              nan    | none (window end)                                                 |
+| Xia et al. 2022 | measured  | mu010       | 0.102 |               1.14 |               0    |            18 |               2 |         1.21 |         7.18 |                1.57 | COX9 (ETC); YBR041W (other); TYR1 (Amino acid metabolism)         |
+| Xia et al. 2022 | measured  | mu028       | 0.284 |               3.14 |               0    |            38 |               2 |         3.36 |         4.29 |                3.91 | TYR1 (Amino acid metabolism); COR1 (ETC); YPL028W (other)         |
+| Xia et al. 2022 | measured  | mu033       | 0.334 |               4.88 |               2.19 |            42 |               5 |         5.52 |        16.4  |              nan    | none (window end)                                                 |
 
-## Table 6. The Xia series scaled to Ptot, and rescaled to the coverage of this study
+## Table 6. Respiratory-chain kcats derived from each dataset: the highest apparent turnover across its conditions
 
-| scaling   | condition   |   glucose_measured |   ethanol_measured |   ETC median usage (%) |   Ribosome median usage (%) |   Glycolysis median usage (%) |   respiratory limit (built) |   respiratory limit (measured) |
-|:----------|:------------|-------------------:|-------------------:|-----------------------:|----------------------------:|------------------------------:|----------------------------:|-------------------------------:|
-| Ptot      | μ0.10       |               1.14 |               0    |                   43.1 |                        33.6 |                          2.9  |                        1.94 |                           1.94 |
-| Ptot      | μ0.28       |               3.14 |               0    |                   66.6 |                        64.8 |                         19.9  |                        4.11 |                           4.11 |
-| Ptot      | μ0.33       |               4.88 |               2.19 |                   65.2 |                        64   |                         30.6  |                        4.68 |                           4.68 |
-| coverage  | μ0.10       |               1.14 |               0    |                   54.7 |                        42.5 |                          3.68 |                        1.72 |                           1.72 |
-| coverage  | μ0.28       |               3.14 |               0    |                   84.5 |                        82.1 |                         25.2  |                        3.74 |                           3.74 |
-| coverage  | μ0.33       |               4.88 |               2.19 |                   82.5 |                        80.6 |                         38.8  |                        4.22 |                           4.22 |
+| dataset         | complex      | reaction   | set by   |   derived kcat (1/s) |   ecModel kcat (1/s) |
+|:----------------|:-------------|:-----------|:---------|---------------------:|---------------------:|
+| This study      | ATP synthase | r_0226     | CN75     |             1.13e+03 |            84.6      |
+| This study      | complex III  | r_0439     | CN75     |           948        |           290        |
+| This study      | complex IV   | r_0438     | CN75     |             2.55e+03 |             1.38e+03 |
+| Xia et al. 2022 | ATP synthase | r_0226     | μ0.33    |           397        |            84.6      |
+| Xia et al. 2022 | complex III  | r_0439     | μ0.33    |           258        |           290        |
+| Xia et al. 2022 | complex IV   | r_0438     | μ0.33    |           841        |             1.38e+03 |

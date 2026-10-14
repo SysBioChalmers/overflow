@@ -30,7 +30,6 @@ XIA = HERE.parent
 DATASETS = {
     "ThisStudy": (REPO, ("CN4", "CN22", "CN38", "CN75", "hGR")),
     "Xia": (XIA, ("mu010", "mu028", "mu033")),
-    "XiaCoverage": (XIA / "coverage", ("mu010", "mu028", "mu033")),
 }
 OVERFLOW = {"r_1761": 2, "r_1634": 2, "r_1808": 3, "r_1793": 1}  # ethanol, acetate, glycerol, formate (C)
 OPEN = {CO2_RXN, "r_2100", "r_1832", "r_2111", *OVERFLOW}

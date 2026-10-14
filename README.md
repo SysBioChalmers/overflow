@@ -160,6 +160,26 @@ Writes `results/COMPARISON.md`: predicted exchange rates, median capacity usage
 per system and the sampled ATP and redox budget, this pipeline beside the MATLAB
 one, read from `legacy_matlab/results/`.
 
+## Respiratory-chain kcats
+
+With the ecModel's kcats (complex III 290/s and complex IV 1376/s, from BRENDA; ATP
+synthase 85/s), the measured respiratory chain cannot carry the measured respiration
+in several conditions, so the build raises its abundances to what the fluxes need and
+its capacity usage reads 100% by construction. `overflow.respiratory_kcats` derives
+these three kcats from the data instead. In every condition the apparent turnover of a
+complex is its sampled flux over the complex abundance the build uses (the filtered
+mean + 1.96 SD of its measured subunits, levelled to one abundance per complex). The
+highest apparent turnover across the conditions becomes the complex's kcat, which
+`overflow.build --respiratory-kcats` applies to every isozyme variant before building.
+No other kcat changes.
+
+Two assumptions follow: the condition that sets a kcat runs that complex at full
+capacity, so its saturation is built in and the derived kcat is a lower bound; and a
+dataset's kcats come from its own abundances, so a difference in absolute protein
+quantification between datasets cancels for the respiratory chain. The turnovers and
+kcats are in `results/modelGeneration/respiratoryTurnover.tsv` and
+`respiratoryKcats.tsv`.
+
 ## Running the whole analysis
 
 The analysis is run with `--fit-rates`, implemented in `overflow.build`
@@ -172,12 +192,17 @@ measured physiology. `--uptake-flex 1.08` gives CN4 the glucose it needs, and `-
 proton leak (see the build options).
 
 ```bash
-python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08 --block r_2129
+python -m overflow.run_sampling --procs 12
+python -m overflow.respiratory_kcats
+python -m overflow.build --fit-rates --rate-tolerance 0.08 --uptake-flex 1.08 --block r_2129 \
+    --respiratory-kcats results/modelGeneration/respiratoryKcats.tsv
 python -m overflow.build_ribosome
 python -m overflow.analyze_usage
-python -m overflow.run_sampling --procs 12
 python -m overflow.compare
 ```
+
+Sampling uses the conventional GEM and no kcats, so it comes first: the kcats of the
+respiratory chain are derived from its fluxes (above).
 
 The tables and figures under `results/` are from a full run of this recipe. The
 models it builds (`models/ecModel_P_<cond>.yml`, about 67 MB) are not committed and

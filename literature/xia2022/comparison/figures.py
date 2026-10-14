@@ -82,11 +82,11 @@ def table_conditions():
     return pd.DataFrame(rows)
 
 
-def table_medians():
-    k = read("ThisStudy", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
-    x = read("Xia", "results", "enzymeUsage", "systemMedians.tsv").set_index("GOterm")
-    t = k.join(x).rename(columns=DISPLAY)
-    return t.loc[list(SYSTEMS) + list(SUPPLEMENT)].reset_index().rename(columns={"GOterm": "system"})
+def table_usage(r):
+    """Capacity usage per system: enzyme mass used over the measured capacity of its enzymes (%)."""
+    r = r.assign(usage=100 * r["used"] / r["cap"].where(r["cap"] > 0))
+    wide = r.pivot(index="system", columns="condition", values="usage").reindex(list(SYSTEMS) + list(SUPPLEMENT))[ORDER]
+    return wide.rename(columns=DISPLAY).reset_index()
 
 
 def selected_fluxes():
@@ -114,55 +114,50 @@ def table_atp():
     return pd.DataFrame(rows).T[ORDER].rename(columns=DISPLAY).reset_index().rename(columns={"index": "flux (mmol/gDW/h)"})
 
 
-def reserve():
-    """Per system and condition: enzyme mass used and the measured cap, in mg/gDW."""
+def system_mass(usage, conditions):
+    """Per system and condition: enzyme mass used and the measured cap of its enzymes, in mg/gDW."""
+    annotation = read("ThisStudy", "data", "selectedAnnotation.txt")
+    system = dict(zip(annotation.iloc[:, 0], annotation.iloc[:, 3]))
+    usage = usage.assign(system=usage["protID"].map(system))
     rows = []
-    for ds, s in SETS.items():
-        usage = read(ds, "results", "enzymeUsage", "enzymeUsages.tsv")
-        annotation = read("ThisStudy", "data", "selectedAnnotation.txt")
-        system = dict(zip(annotation.iloc[:, 0], annotation.iloc[:, 3]))
-        usage["system"] = usage["protID"].map(system)
-        for c in s["conds"]:
-            measured = usage[usage[f"UB_{c}"] < 1000]  # unmeasured enzymes draw on the pool, cap 1000
-            for sysname, g in measured.groupby("system"):
-                used, cap = g[f"absUse_{c}"].sum(), g[f"UB_{c}"].sum()
-                rows.append(dict(dataset=ds, condition=c, system=sysname, used=used, cap=cap))
+    for c in conditions:
+        measured = usage[usage[f"UB_{c}"] < 1000]  # unmeasured enzymes draw on the pool, cap 1000
+        for sysname, g in measured.groupby("system"):
+            rows.append(dict(condition=c, system=sysname, used=g[f"absUse_{c}"].sum(), cap=g[f"UB_{c}"].sum()))
     return pd.DataFrame(rows)
+
+
+def reserve():
+    return pd.concat(system_mass(read(ds, "results", "enzymeUsage", "enzymeUsages.tsv"), s["conds"]).assign(dataset=ds)
+                     for ds, s in SETS.items())
 
 
 def table_reserve(r):
-    r = r[r["system"].isin(SYSTEMS)].copy()
-    r["unused (%)"] = 100 * (1 - r["used"] / r["cap"])
-    wide = r.pivot(index="system", columns="condition", values="unused (%)")[ORDER].loc[list(SYSTEMS)]
-    return wide.rename(columns=DISPLAY).reset_index()
+    """Enzyme mass used and measured capacity per system (mg/gDW), the numbers of figure 3."""
+    r = r[r["system"].isin(SYSTEMS)].rename(columns={"used": "used", "cap": "measured capacity"})
+    long = r.melt(id_vars=["system", "condition"], value_vars=["used", "measured capacity"], var_name="mg/gDW")
+    wide = long.pivot(index=["system", "mg/gDW"], columns="condition", values="value")[ORDER]
+    wide = wide.reindex(pd.MultiIndex.from_product([list(SYSTEMS), ["used", "measured capacity"]]))
+    return wide.rename(columns=DISPLAY).rename_axis(["system", "mg/gDW"]).reset_index()
 
 
-def table_coverage(limits):
-    """The series as converted against the series rescaled to the coverage of this study."""
-    runs = {"Ptot": XIA, "coverage": XIA / "coverage"}
+def table_kcats():
+    """The respiratory-chain kcats each dataset's build uses, against the ecModel's."""
     rows = []
-    for label, root in runs.items():
-        medians = pd.read_csv(root / "results" / "enzymeUsage" / "systemMedians.tsv", sep="\t").set_index("GOterm")
-        for c in SETS["Xia"]["conds"]:
-            row = dict(scaling=label, condition=name(c), glucose_measured=FERM.loc[c, "Glucose"],
-                       ethanol_measured=0.0 if pd.isna(FERM.loc[c, "Ethanol"]) else FERM.loc[c, "Ethanol"])
-            for system in ("ETC", "Ribosome", "Glycolysis"):
-                row[f"{system} median usage (%)"] = medians.loc[system, c]
-            if limits is not None:
-                dataset = "Xia" if label == "Ptot" else "XiaCoverage"
-                for variant in ("built", "measured"):
-                    hit = limits[(limits["dataset"] == dataset) & (limits["variant"] == variant) & (limits["condition"] == c)]
-                    row[f"respiratory limit ({variant})"] = hit["respiratory_limit"].iloc[0] if len(hit) else float("nan")
-            rows.append(row)
-    return pd.DataFrame(rows)
+    for ds, s in SETS.items():
+        k = read(ds, "results", "modelGeneration", "respiratoryKcats.tsv")
+        k.insert(0, "dataset", s["label"])
+        k["condition"] = k["condition"].map(name)
+        rows.append(k)
+    return pd.concat(rows).rename(columns={"condition": "set by", "kcat_per_s": "derived kcat (1/s)",
+                                           "ecmodel_kcat_per_s": "ecModel kcat (1/s)"})
 
 
-def limit_table(all_datasets=False):
+def limit_table():
     files = sorted(OUT.glob("limit_*.tsv"))
     if not files:
         return None
     t = pd.concat(pd.read_csv(f, sep="\t") for f in files)
-    t = t[t["dataset"].isin(SETS)] if not all_datasets else t
     t["condition"] = pd.Categorical(t["condition"], ORDER, ordered=True)
     return t.sort_values(["variant", "condition"])
 
@@ -182,11 +177,11 @@ def figure_usage(systems, stem):
     save(fig, stem)
 
 
-def figure_trend(medians):
+def figure_trend(usage):
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(2, 4, figsize=(16 / 2.54, 8 / 2.54), sharex=True)
         for axis, system in zip(axes.flat, list(SYSTEMS) + list(SUPPLEMENT)):
-            row = medians.set_index("system").loc[system]
+            row = usage.set_index("system").loc[system]
             for ds, s in SETS.items():
                 xs = [FERM.loc[c, "Glucose"] for c in s["conds"]]
                 ys = [row[name(c)] for c in s["conds"]]
@@ -201,12 +196,14 @@ def figure_trend(medians):
         for axis in axes[1]:
             axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
         for axis in axes[:, 0]:
-            axis.set_ylabel("Median capacity usage (%)", fontsize=SMALL)
+            axis.set_ylabel("Capacity usage (%)", fontsize=SMALL)
         handles = [plt.Line2D([], [], color=s["colour"], marker=s["marker"], markersize=3.5, linewidth=0.6, label=s["label"]) for s in SETS.values()]
         handles.append(plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", markerfacecolor="#4D4D4D", label="ethanol secreted"))
         handles.append(plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", markerfacecolor="white", label="no ethanol"))
-        fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=SMALL, bbox_to_anchor=(0.5, 0.0))
-        fig.subplots_adjust(left=0.08, right=0.99, top=0.93, bottom=0.2, hspace=0.45, wspace=0.3)
+        fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=SMALL, bbox_to_anchor=(0.5, 0.045))
+        fig.text(0.5, 0.005, "capacity usage: enzyme mass used over the measured capacity of the system's enzymes",
+                 ha="center", va="bottom", fontsize=SMALL - 0.8, color="#4D4D4D")
+        fig.subplots_adjust(left=0.08, right=0.99, top=0.93, bottom=0.26, hspace=0.45, wspace=0.3)
         save(fig, "fig2_usage_vs_uptake")
 
 
@@ -295,6 +292,39 @@ def figure_limit(limits, variant):
         save(fig, "fig5_respiratory_limit")
 
 
+def figure_turnover():
+    """Apparent turnover of each complex relative to the highest in its dataset; needs no kcat."""
+    complexes = ("complex III", "complex IV", "ATP synthase")
+    with plt.rc_context(STYLE):
+        fig, axes = plt.subplots(1, 3, figsize=(16 / 2.54, 5.5 / 2.54), sharey=True)
+        for axis, cx in zip(axes, complexes):
+            for ds, s in SETS.items():
+                t = read(ds, "results", "modelGeneration", "respiratoryTurnover.tsv")
+                d = t[t["complex"] == cx].set_index("condition").loc[s["conds"]]
+                xs = [FERM.loc[c, "Glucose"] for c in s["conds"]]
+                axis.plot(xs, d["relative_to_highest"], color=s["colour"], linewidth=0.6)
+                for c, x in zip(s["conds"], xs):
+                    y = d.loc[c, "relative_to_highest"]
+                    axis.plot(x, y, s["marker"], markersize=3.5, color=s["colour"],
+                              markerfacecolor=s["colour"] if overflowing(c) else "white", markeredgewidth=0.6)
+                    xia = ds == "Xia"
+                    axis.annotate(name(c), (x, y), xytext=(-3, 4) if xia else (3, -8), textcoords="offset points",
+                                  ha="right" if xia else "left", fontsize=SMALL - 1.4, color=s["colour"])
+            axis.set_title(cx[0].upper() + cx[1:], color="#1A1A1A")
+            axis.set_ylim(0, 1.15)
+            axis.set_xlim(0.4, 6.1)
+            axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
+        axes[0].set_ylabel("Apparent turnover / highest in dataset", fontsize=SMALL)
+        handles = [plt.Line2D([], [], color=s["colour"], marker=s["marker"], markersize=3.5, linewidth=0.6, label=s["label"])
+                   for s in SETS.values()]
+        handles += [plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", label="ethanol secreted"),
+                    plt.Line2D([], [], color="#4D4D4D", marker="o", markersize=3.5, linestyle="none", markerfacecolor="white",
+                               label="no ethanol")]
+        fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=SMALL, bbox_to_anchor=(0.5, 0.0))
+        fig.subplots_adjust(left=0.08, right=0.99, top=0.9, bottom=0.32, wspace=0.12)
+        save(fig, "fig6_apparent_turnover")
+
+
 def markdown(tables):
     lines = []
     for title, t in tables:
@@ -305,28 +335,28 @@ def markdown(tables):
 if __name__ == "__main__":
     FIG.mkdir(exist_ok=True)
     TAB.mkdir(exist_ok=True)
-    medians = table_medians()
     r = reserve()
+    usage = table_usage(r)
     tables = [
         ("Table 1. Conditions, measured and modelled exchange rates (mmol/gDW/h), and the caps the pipeline changed", table_conditions()),
-        ("Table 2. Median capacity usage per system (%)", medians),
-        ("Table 3. Unused measured capacity per system (% of the summed caps of measured enzymes)", table_reserve(r)),
+        ("Table 2. Capacity usage per system: enzyme mass used over the measured capacity of its enzymes (%)", usage),
+        ("Table 3. Enzyme mass used and measured capacity per system (mg/gDW)", table_reserve(r)),
         ("Table 4. Sampled ATP and redox budget (mean over samples, mmol/gDW/h)", table_atp()),
     ]
     limits = limit_table()
     if limits is not None:
         tables.append(("Table 5. Respiratory limit: the highest glucose uptake the measured proteome can respire completely at the condition's growth rate (mmol/gDW/h)",
                        limits.replace({"dataset": {k: v["label"] for k, v in SETS.items()}})))
-    if (XIA / "coverage" / "results").exists():
-        tables.append(("Table 6. The Xia series scaled to Ptot, and rescaled to the coverage of this study", table_coverage(limit_table(all_datasets=True))))
+    tables.append(("Table 6. Respiratory-chain kcats derived from each dataset: the highest apparent turnover across its conditions", table_kcats()))
     for i, (title, t) in enumerate(tables, 1):
         t.to_csv(TAB / f"table{i}.tsv", sep="\t", index=False)
     markdown(tables)
     figure_usage(SYSTEMS, "fig1_capacity_usage")
     figure_usage(SUPPLEMENT, "figS1_capacity_usage_supplement")
-    figure_trend(medians)
+    figure_trend(usage)
     figure_reserve(r)
     figure_atp()
     if limits is not None:
         figure_limit(limits, "built")
+    figure_turnover()
     print(open(TAB / "tables.md").read())

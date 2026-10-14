@@ -55,6 +55,7 @@ from overflow.flexibilize import (
     write_back_concentrations,
 )
 from overflow.ngam import NgamFit, fit_ngam, parsimonious_solution
+from overflow.respiratory_kcats import apply_respiratory_kcats
 from overflow.proteomics import (
     condition_prot_data,
     molecular_masses,
@@ -104,6 +105,7 @@ def build_condition(
     uptake_flex: float = 1.05,
     objective: str = "protein",
     block: Sequence[str] = (),
+    respiratory_kcats: Optional[pd.DataFrame] = None,
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -127,6 +129,9 @@ def build_condition(
     reactions only (``"metabolic-flux"``); both need ``fit_rates``.
 
     ``block`` lists reactions to close before anything else is applied.
+
+    ``respiratory_kcats`` replaces the kcats of the respiratory complexes
+    with those derived by :mod:`overflow.respiratory_kcats`.
     """
     if objective not in OBJECTIVES:
         raise ValueError(f"objective must be one of {OBJECTIVES}, not {objective!r}")
@@ -145,6 +150,8 @@ def build_condition(
     )
 
     model = load_model(build_adapter(condition))
+    if respiratory_kcats is not None:
+        apply_respiratory_kcats(model, respiratory_kcats)
     free_ngam(model)
     block_reactions(model, block)
 
@@ -389,6 +396,11 @@ def main(argv: Optional[list[str]] = None) -> int:
              "proton leak)",
     )
     parser.add_argument(
+        "--respiratory-kcats", type=Path, metavar="TSV",
+        help="kcats of the respiratory complexes written by overflow.respiratory_kcats "
+             "(modelGeneration/respiratoryKcats.tsv), applied before the model is built",
+    )
+    parser.add_argument(
         "--objective",
         choices=OBJECTIVES,
         default="protein",
@@ -419,6 +431,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     conditions = load_conditions()
     table = read_proteomics()
     masses = molecular_masses()
+    respiratory_kcats = (
+        pd.read_csv(args.respiratory_kcats, sep="\t") if args.respiratory_kcats else None
+    )
 
     results = []
     for name in args.conditions or CONDITION_ORDER:
@@ -434,6 +449,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             rate_tolerance=args.rate_tolerance,
             uptake_flex=args.uptake_flex,
             objective=args.objective, block=args.block,
+            respiratory_kcats=respiratory_kcats,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)
