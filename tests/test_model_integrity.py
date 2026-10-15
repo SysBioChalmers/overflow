@@ -11,12 +11,14 @@ from overflow.config import (
     CO2_RXN,
     NGAM_RXN,
     O2_RXN,
-    OXPHOS_RXNS,
     POOL_RXN,
     PROTEIN_RXN,
 )
 
 pytestmark = pytest.mark.slow
+
+#: Succinate dehydrogenase, complexes III and IV, ATP synthase.
+OXPHOS_RXNS = ("r_1021", "r_0439", "r_0438", "r_0226")
 
 
 def test_model_is_a_full_ecmodel(ec_model):

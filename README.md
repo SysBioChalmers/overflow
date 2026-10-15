@@ -72,6 +72,33 @@ Each condition gets `models/ecModel_P_<cond>.yml` and, in `results/`, the
 enzymes whose measured abundance the model could not run on, the enzymes whose
 caps had to be released, and the full flux distribution.
 
+### From proteomics to enzyme caps
+
+Each measured abundance (the filtered mean + 1.96 SD of the replicates) caps its
+enzyme's usage. Enzyme complexes are handled as one unit throughout
+(`overflow.complexes`):
+
+1. **Complex levelling.** Absolute proteomics recovers the subunits of one complex
+   unevenly: subunits present 1:1 can come out tenfold apart while their replicates
+   agree within a few percent. Each complex therefore gets one abundance, the median
+   per copy over its measured subunits, written back to every subunit by its copies in
+   the model; unmeasured subunits of a complex are filled. Enzyme sets that share at
+   least two subunits and half the larger set (isozyme variants) are one complex.
+   Proteins in several complexes, or that also work alone, keep their own measurement:
+   cytochrome c, thioredoxin and LPD1, the E3 subunit of pyruvate dehydrogenase,
+   2-oxoglutarate dehydrogenase and the glycine cleavage system. `--no-complex-fix`
+   turns levelling off.
+2. **Minimum usage.** On a model limited only by the protein pool, a complex the model
+   cannot run at the dilution rate for less than its measured abundance is raised to
+   what it needs.
+3. **Reaching the dilution rate.** One LP finds the least relaxation that lets the
+   model grow at the dilution rate (`relax_to_growth`): it minimises the summed fold
+   increases of the measured caps, one fold per complex, with the protein pool allowed
+   to grow at 1000 times the price of a cap. The result does not depend on the order in
+   which limiting enzymes are found.
+4. **Measured rates.** With `--fit-rates`, the same LP under the measured exchange
+   rates raises the caps further by the least that reproduces them.
+
 Options change what the models are asked to account for:
 
 - `--fit-rates` holds CO2, oxygen and the byproducts within a tolerance of their
@@ -168,7 +195,7 @@ in several conditions, so the build raises its abundances to what the fluxes nee
 its capacity usage reads 100% by construction. `overflow.respiratory_kcats` derives
 these three kcats from the data instead. In every condition the apparent turnover of a
 complex is its sampled flux over the complex abundance the build uses (the filtered
-mean + 1.96 SD of its measured subunits, levelled to one abundance per complex). The
+mean + 1.96 SD of its measured subunits, levelled to the median per copy). The
 highest apparent turnover across the conditions becomes the complex's kcat, which
 `overflow.build --respiratory-kcats` applies to every isozyme variant before building.
 No other kcat changes.

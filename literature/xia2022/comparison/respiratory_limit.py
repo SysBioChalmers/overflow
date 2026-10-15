@@ -21,6 +21,7 @@ cobra.Configuration().processes = 1
 import overflow.config as config
 from geckopy import load_ec_model
 from overflow import build_adapter
+from overflow.complexes import complex_families
 from overflow.config import BIO_RXN, C_SOURCE, CO2_RXN, NGAM_RXN, O2_RXN
 
 HERE = Path(__file__).resolve().parent
@@ -32,7 +33,8 @@ DATASETS = {
     "Xia": (XIA, ("mu010", "mu028", "mu033")),
 }
 OVERFLOW = {"r_1761": 2, "r_1634": 2, "r_1808": 3, "r_1793": 1}  # ethanol, acetate, glycerol, formate (C)
-OPEN = {CO2_RXN, "r_2100", "r_1832", "r_2111", *OVERFLOW}
+# glycine export (r_1810) stays open: every build secretes a little of it
+OPEN = {CO2_RXN, "r_2100", "r_1832", "r_2111", "r_1810", *OVERFLOW}
 THRESHOLD = 0.05  # mmol C/gDW/h of forced overflow tolerated at the limit
 
 uniprot = pd.read_csv(REPO / "data" / "uniprot.tsv", sep="\t")
@@ -64,7 +66,10 @@ def prepare(model, cond, generation, variant):
     model.reactions.get_by_id(BIO_RXN).bounds = (0.99 * cond.d_rate, cond.d_rate)
 
     read = lambda kind: pd.read_csv(generation / f"{kind}_{cond.name}.tsv", sep="\t")
-    no_information = set(read("minimumUsage")["protein"]) | set(read("modifiedEnzymes")["protein"])
+    raised = set(read("minimumUsage")["protein"]) | set(read("modifiedEnzymes")["protein"])
+    # a complex is lifted as a whole when any of its subunits was raised
+    families = complex_families(model)
+    no_information = {m for p in raised for m in families.members(p)}
     for p in no_information:
         rid = f"usage_prot_{p}"
         if rid in model.reactions:

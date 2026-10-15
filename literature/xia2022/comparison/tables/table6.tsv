@@ -1,7 +1,7 @@
 dataset	complex	reaction	set by	derived kcat (1/s)	ecModel kcat (1/s)
-This study	ATP synthase	r_0226	CN75	1132.565665	84.649052
-This study	complex III	r_0439	CN75	947.982335	290.494288
-This study	complex IV	r_0438	CN75	2546.096736	1376.34631
-Xia et al. 2022	ATP synthase	r_0226	μ0.33	397.378745	84.649052
-Xia et al. 2022	complex III	r_0439	μ0.33	257.661057	290.494288
-Xia et al. 2022	complex IV	r_0438	μ0.33	841.165031	1376.34631
+This study	ATP synthase	r_0226	CN75	1607.695903	84.649052
+This study	complex III	r_0439	CN75	1452.134199	290.494288
+This study	complex IV	r_0438	CN75	3242.055529	1376.34631
+Xia et al. 2022	ATP synthase	r_0226	μ0.33	378.750042	84.649052
+Xia et al. 2022	complex III	r_0439	μ0.33	330.101952	290.494288
+Xia et al. 2022	complex IV	r_0438	μ0.33	841.786426	1376.34631

@@ -47,10 +47,6 @@ BYPRODUCT_RXNS = {
     "Formate": "r_1793",
 }
 
-#: Oxidative phosphorylation reactions whose complexes the original
-#: analysis treated as a unit.
-OXPHOS_RXNS = ("r_1021", "r_0439", "r_0438", "r_0226")
-
 #: Prefix of the replicate columns in ``abs_proteomics.txt`` per condition.
 #: hGR is the odd one out -- its columns are named ``CN_hGR_*``.
 REPLICATE_PREFIX = {

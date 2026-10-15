@@ -9,9 +9,9 @@ from geckopy import constrain_enz_concs
 
 from overflow.flexibilize import (
     apply_concentrations,
-    flexibilize_proteins,
     measured_enzymes,
     minimum_usage_pass,
+    relax_to_growth,
     write_back_concentrations,
 )
 from tiny import tiny_ec_model
@@ -75,55 +75,45 @@ def test_the_pass_does_not_constrain_the_model_it_measures(model):
         assert model.reactions.get_by_id(f"usage_prot_{enzyme}").upper_bound == 1000.0
 
 
-# --- iterative flexibilization ---------------------------------------
+# --- relaxing abundances until the dilution rate is reached ----------
 
-def test_a_limiting_cap_is_released_and_growth_reaches_the_target(model):
+def test_the_least_relaxation_reaches_the_target(model):
+    """10 units need x on E1 (10 mg each) and 10 - x on E2 (5 mg each).
+    The summed fold increases (2x - 1)+ and (9 - x)+ are smallest at
+    x = 0.5: E1 stays at 5 mg and E2 is raised to 47.5 mg."""
     _set_concentrations(model, E1=5.0, E2=5.0)
     apply_concentrations(model, model.ec.concs)
     assert model.optimize().objective_value < 10.0
 
-    result = flexibilize_proteins(model, target_growth=10.0, bio_rxn="BIO")
+    result = relax_to_growth(model, target_growth=10.0, bio_rxn="BIO")
     assert result.reached_target
     assert result.growth == pytest.approx(10.0)
-    assert set(result.released) <= {"E1", "E2"}
+    assert result.released == ["E2"]
+    assert model.reactions.get_by_id("usage_prot_E2").upper_bound == pytest.approx(47.5)
+    assert model.reactions.get_by_id("usage_prot_E1").upper_bound == pytest.approx(5.0)
+    assert result.pool_increases == 0
 
 
-def test_a_released_enzyme_is_pulled_back_to_what_it_uses(model):
-    """Releasing a cap should cost only what the model spends, not the
-    1000 mg the release temporarily allows."""
-    _set_concentrations(model, E1=5.0, E2=5.0)
-    apply_concentrations(model, model.ec.concs)
-    result = flexibilize_proteins(model, target_growth=10.0, bio_rxn="BIO")
-
-    for enzyme in result.released:
-        bound = model.reactions.get_by_id(f"usage_prot_{enzyme}").upper_bound
-        assert bound < 1000.0
-    table = result.table()
-    assert (table["modified_mg_gDW"] >= table["previous_mg_gDW"]).all()
-
-
-def test_the_pool_is_grown_when_no_single_enzyme_is_limiting():
-    """With generous caps but too small a pool, there is nothing to
-    release, so the budget itself has to give."""
+def test_the_pool_grows_only_when_no_enzyme_relaxation_suffices():
     model = tiny_ec_model(pool=10.0, supply=10.0)
     _set_concentrations(model, E1=1000.0, E2=1000.0)
     apply_concentrations(model, model.ec.concs)
 
-    result = flexibilize_proteins(model, target_growth=10.0, bio_rxn="BIO")
-    assert result.pool_increases > 0
-    assert result.pool_after > result.pool_before
+    result = relax_to_growth(model, target_growth=10.0, bio_rxn="BIO")
     assert result.reached_target
+    assert result.pool_increases == 1
+    assert result.pool_after == pytest.approx(50.0)  # all on E2, 5 mg per unit
+    assert result.released == []
 
 
-def test_an_unreachable_target_is_reported_rather_than_looped_forever():
+def test_an_unreachable_target_is_reported():
     """Supply, not protein, caps this one: no amount of enzyme helps."""
     model = tiny_ec_model(pool=1000.0, supply=1.0)
     _set_concentrations(model, E1=1.0, E2=1.0)
     apply_concentrations(model, model.ec.concs)
 
-    result = flexibilize_proteins(model, target_growth=10.0, max_iterations=20, bio_rxn="BIO")
+    result = relax_to_growth(model, target_growth=10.0, bio_rxn="BIO")
     assert not result.reached_target
-    assert result.growth == pytest.approx(1.0)
 
 
 # --- keeping the record straight -------------------------------------
@@ -143,61 +133,6 @@ def test_applying_concentrations_caps_the_usage_reactions(model):
     apply_concentrations(model, model.ec.concs)
     assert model.reactions.get_by_id("usage_prot_E2").upper_bound == 7.0
     assert model.reactions.get_by_id("usage_prot_E1").upper_bound == 1000.0
-
-
-# --- robustness of finding the limiting cap ---------------------------
-
-def test_the_limiting_cap_is_found_even_when_shadow_prices_are_silent(model, monkeypatch):
-    """On a degenerate optimum the duals can all come back zero. The
-    probe has to find the limiting cap anyway, or the search concludes
-    that nothing is limiting and grows the pool forever."""
-    import numpy as np
-
-    import overflow.flexibilize as flexibilize
-
-    def silent(model, proteins=None, **kwargs):
-        n = len(proteins if proteins is not None else model.ec.enzymes)
-        return np.ones(n, dtype=bool), np.zeros(n, dtype=float)
-
-    monkeypatch.setattr(flexibilize, "get_conc_control_coeffs", silent)
-
-    _set_concentrations(model, E1=5.0, E2=5.0)
-    apply_concentrations(model, model.ec.concs)
-    result = flexibilize_proteins(model, target_growth=10.0, bio_rxn="BIO")
-
-    assert result.reached_target
-    assert result.released, "no cap was released despite one being limiting"
-    assert result.pool_increases == 0
-
-
-def test_binding_caps_ignores_enzymes_that_are_already_free(model):
-    from overflow.flexibilize import binding_caps
-
-    _set_concentrations(model, E1=5.0, E2=5.0)
-    apply_concentrations(model, model.ec.concs)
-    solution = model.optimize()
-    assert set(binding_caps(model, solution, 1e-6)) <= {"E1", "E2"}
-
-    model.reactions.get_by_id("usage_prot_E2").upper_bound = 1000.0
-    solution = model.optimize()
-    assert "E2" not in binding_caps(model, solution, 1e-6)
-
-
-def test_a_stalled_search_gives_up_instead_of_inflating_the_pool(model, monkeypatch):
-    """Growing the protein budget without ever gaining growth means the
-    budget is not the constraint; the run should stop and say so rather
-    than leave behind a model with an invented pool."""
-    import overflow.flexibilize as flexibilize
-
-    monkeypatch.setattr(flexibilize, "_most_limiting", lambda *a, **k: None)
-
-    _set_concentrations(model, E1=5.0, E2=5.0)
-    apply_concentrations(model, model.ec.concs)
-    result = flexibilize_proteins(
-        model, target_growth=10.0, bio_rxn="BIO", patience=5, max_iterations=500
-    )
-    assert not result.reached_target
-    assert result.pool_increases <= 7
 
 
 # --- relaxing abundances until the measured rates fit ----------------

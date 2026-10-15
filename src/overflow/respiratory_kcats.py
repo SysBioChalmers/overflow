@@ -10,7 +10,7 @@ In each condition the apparent turnover of a complex is its sampled flux
 (``randomSampling/allFluxes.tsv``, the conventional model constrained by
 the measured rates, which uses no kcats) over the complex abundance the
 build uses: the filtered mean + 1.96 SD of its measured subunits,
-levelled to one abundance per complex. The highest apparent turnover
+levelled to one abundance per complex (the median per copy). The highest apparent turnover
 across the conditions becomes the complex's kcat, for every isozyme
 variant of the forward reaction. The condition that sets it runs the
 complex at full capacity, and the derived kcat is a lower bound.
@@ -30,7 +30,7 @@ import pandas as pd
 
 from overflow.solver import HELP, use_solver
 from overflow.adapter import load_model
-from overflow.complexes import complex_subunits
+from overflow.complexes import complex_families, complex_subunits
 from overflow.config import CONDITION_ORDER, RESULTS_DIR, load_conditions
 from overflow.proteomics import condition_prot_data, molecular_masses, read_proteomics
 
@@ -43,10 +43,19 @@ def variants(model, base: str) -> list[str]:
     return [r for r in model.ec.rxns if r == base or r.startswith(base + "_EXP_")]
 
 
-def complex_abundance(model, base: str, molar: Mapping[str, float]) -> float:
-    """Abundance of a complex [mmol/gDW]: mean over its measured subunits of abundance / copies."""
+def complex_abundance(model, base: str, molar: Mapping[str, float], families) -> float:
+    """Abundance of a complex [mmol/gDW] over the subunits it owns, per copy.
+
+    The levelled subunits all carry the same abundance per copy; subunits
+    shared with other complexes (cytochrome c in complexes III and IV)
+    keep their own and are left out.
+    """
     _, subunits = complex_subunits(model, base)[0]
-    values = [molar[protein] / copies for protein, copies in subunits if molar.get(protein, 0) > 0]
+    owners = {families.owner[p] for p, _ in subunits if p in families.owner}
+    if len(owners) != 1:
+        raise ValueError(f"{base}: its subunits belong to {len(owners)} complexes")
+    owned = families.owned(owners.pop())
+    values = [molar[p] / copies for p, copies in owned.items() if molar.get(p, 0) > 0]
     return float(np.mean(values)) if values else float("nan")
 
 
@@ -57,13 +66,14 @@ def apparent_turnovers(model, conditions, sampled: pd.DataFrame, table=None, mas
     if masses is None:
         masses = molecular_masses()
     kcat = dict(zip(model.ec.rxns, np.asarray(model.ec.kcat, dtype=float)))
+    families = complex_families(model)
     rows = []
     for name, condition in conditions.items():
         levelled = condition_prot_data(condition, model, table=table, masses=masses).complex_fix
         molar = dict(zip(levelled.uniprot_ids, levelled.abundances))
         for complex_name, base in COMPLEXES.items():
             flux = abs(float(sampled.loc[base, f"{name}_AVERAGE"]))
-            abundance = complex_abundance(model, base, molar)
+            abundance = complex_abundance(model, base, molar, families)
             rows.append(dict(
                 condition=name, complex=complex_name, reaction=base,
                 flux_mmol_gDW_h=flux, abundance_nmol_gDW=abundance * 1e6,

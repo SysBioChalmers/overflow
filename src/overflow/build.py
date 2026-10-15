@@ -49,8 +49,8 @@ from overflow.flexibilize import (
     MinimumUsageResult,
     RateFitResult,
     apply_concentrations,
-    flexibilize_proteins,
     minimum_usage_pass,
+    relax_to_growth,
     relax_to_measured_rates,
     write_back_concentrations,
 )
@@ -183,7 +183,7 @@ def build_condition(
     result.minimum_usage = minimum_usage_pass(model, condition.d_rate)
     apply_concentrations(model, result.minimum_usage.concentrations)
 
-    result.flexibilization = flexibilize_proteins(model, condition.d_rate)
+    result.flexibilization = relax_to_growth(model, condition.d_rate)
     if fit_rates and result.flexibilization.reached_target:
         constrain_measured_rates(model, condition, tolerance=rate_tolerance)
         result.rate_fit = relax_to_measured_rates(model, condition.d_rate)
@@ -196,12 +196,11 @@ def build_condition(
     if not result.flexibilization.reached_target:
         raise InfeasibleCondition(
             f"{condition.name}: the model reaches "
-            f"{result.flexibilization.growth:.5f} /h after releasing "
-            f"{len(result.flexibilization.released)} enzyme caps and growing the "
-            f"protein pool {result.flexibilization.pool_increases} times, short of "
+            f"{result.flexibilization.growth:.5f} /h with every measured cap and the "
+            f"protein pool free to grow, short of "
             f"the dilution rate {condition.d_rate}. Protein is not what limits it: "
             "check the carbon budget, the biomass composition and the maintenance "
-            "cost before flexibilizing further."
+            "cost."
         )
 
     if fit_rates:
@@ -276,8 +275,8 @@ def report(result: BuildResult) -> None:
         f"pool={result.pool_size:.1f} mg/gDW\n"
         f"  {result.n_kept} proteins kept, {result.n_measured} are model enzymes, "
         f"{len(result.minimum_usage.raised)} raised to their minimum usage\n"
-        f"  flexibilized {len(flex.released)} enzymes, pool grown "
-        f"{flex.pool_increases}x ({flex.pool_before:.1f}->{flex.pool_after:.1f})\n"
+        f"  relaxed {len(flex.released)} abundances to reach the dilution rate, pool "
+        f"{flex.pool_before:.1f}->{flex.pool_after:.1f}\n"
         + (f"  relaxed {len(result.rate_fit.proteins)} abundances to fit the "
            f"measured rates, adding {result.rate_fit.added_mg:.2f} mg/gDW\n"
            if result.rate_fit else "")
