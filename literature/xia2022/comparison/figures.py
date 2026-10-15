@@ -75,7 +75,7 @@ def table_conditions():
                 row[f"{ex} meas"] = 0.0 if pd.isna(measured) else measured
                 row[f"{ex} model"] = abs(flux.get(rid, 0.0))
             row["caps raised to minimum"] = len(pd.read_csv(gen("minimumUsage"), sep="\t"))
-            row["caps flexibilized"] = len(pd.read_csv(gen("modifiedEnzymes"), sep="\t"))
+            row["caps relaxed for growth"] = len(pd.read_csv(gen("modifiedEnzymes"), sep="\t"))
             row["caps relaxed for rates"] = len(relaxed)
             row["mg/gDW added for rates"] = relaxed["added_mg_gDW"].sum()
             rows.append(row)

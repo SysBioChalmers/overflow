@@ -1,4 +1,4 @@
-dataset	condition	D	Ptot	Glucose meas	Glucose model	CO2 meas	CO2 model	Oxygen meas	Oxygen model	Ethanol meas	Ethanol model	caps raised to minimum	caps flexibilized	caps relaxed for rates	mg/gDW added for rates
+dataset	condition	D	Ptot	Glucose meas	Glucose model	CO2 meas	CO2 model	Oxygen meas	Oxygen model	Ethanol meas	Ethanol model	caps raised to minimum	caps relaxed for growth	caps relaxed for rates	mg/gDW added for rates
 This study	CN4	0.1	0.5	1.115503298	1.20474356184	3.087765343	3.1013033160649885	2.928264928	2.730064224381655	0.0	0.0	9	12	0	0.0
 This study	CN22	0.1	0.55	1.477902724	1.5961349419200002	4.069756802	4.39533734616	4.18530233	3.8504781436	0.0	0.0	11	5	3	0.2987830290682203
 This study	CN38	0.1	0.33	2.013614504	2.17470366432	6.303284138	5.799021406960001	5.168723262	4.954167496766072	0.790476913	0.7467287260775288	18	8	15	5.420346938292289
