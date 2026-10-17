@@ -253,12 +253,12 @@ def condition_prot_data(
     The f-factor and the protein-content rescaling come from the
     unfiltered replicate means, as they describe the proteome as a
     whole. The abundances that constrain enzymes come from the filtered
-    set, optionally after levelling the respiratory complexes.
+    set, optionally after levelling every enzyme complex to one abundance
+    (:func:`overflow.complexes.level_complexes`).
     """
     from geckopy.databases import ProtData
 
-    from overflow.complexes import fix_complexes
-    from overflow.config import OXPHOS_RXNS
+    from overflow.complexes import level_complexes
 
     if table is None:
         table = read_proteomics()
@@ -275,7 +275,7 @@ def condition_prot_data(
     kept_ids, kept_values = list(filtered.uniprot_ids), filtered.abundances
     complex_fix = None
     if fix_complex_subunits:
-        complex_fix = fix_complexes(model, OXPHOS_RXNS, kept_ids, kept_values)
+        complex_fix = level_complexes(model, kept_ids, kept_values)
         kept_ids, kept_values = complex_fix.uniprot_ids, complex_fix.abundances
 
     return ConditionProteomics(

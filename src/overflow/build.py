@@ -49,12 +49,13 @@ from overflow.flexibilize import (
     MinimumUsageResult,
     RateFitResult,
     apply_concentrations,
-    flexibilize_proteins,
     minimum_usage_pass,
+    relax_to_growth,
     relax_to_measured_rates,
     write_back_concentrations,
 )
 from overflow.ngam import NgamFit, fit_ngam, parsimonious_solution
+from overflow.respiratory_kcats import apply_respiratory_kcats
 from overflow.proteomics import (
     condition_prot_data,
     molecular_masses,
@@ -104,6 +105,7 @@ def build_condition(
     uptake_flex: float = 1.05,
     objective: str = "protein",
     block: Sequence[str] = (),
+    respiratory_kcats: Optional[pd.DataFrame] = None,
     verbose: bool = True,
 ) -> BuildResult:
     """Build one proteome-constrained ecModel.
@@ -127,6 +129,9 @@ def build_condition(
     reactions only (``"metabolic-flux"``); both need ``fit_rates``.
 
     ``block`` lists reactions to close before anything else is applied.
+
+    ``respiratory_kcats`` replaces the kcats of the respiratory complexes
+    with those derived by :mod:`overflow.respiratory_kcats`.
     """
     if objective not in OBJECTIVES:
         raise ValueError(f"objective must be one of {OBJECTIVES}, not {objective!r}")
@@ -145,6 +150,8 @@ def build_condition(
     )
 
     model = load_model(build_adapter(condition))
+    if respiratory_kcats is not None:
+        apply_respiratory_kcats(model, respiratory_kcats)
     free_ngam(model)
     block_reactions(model, block)
 
@@ -176,7 +183,7 @@ def build_condition(
     result.minimum_usage = minimum_usage_pass(model, condition.d_rate)
     apply_concentrations(model, result.minimum_usage.concentrations)
 
-    result.flexibilization = flexibilize_proteins(model, condition.d_rate)
+    result.flexibilization = relax_to_growth(model, condition.d_rate)
     if fit_rates and result.flexibilization.reached_target:
         constrain_measured_rates(model, condition, tolerance=rate_tolerance)
         result.rate_fit = relax_to_measured_rates(model, condition.d_rate)
@@ -189,12 +196,11 @@ def build_condition(
     if not result.flexibilization.reached_target:
         raise InfeasibleCondition(
             f"{condition.name}: the model reaches "
-            f"{result.flexibilization.growth:.5f} /h after releasing "
-            f"{len(result.flexibilization.released)} enzyme caps and growing the "
-            f"protein pool {result.flexibilization.pool_increases} times, short of "
+            f"{result.flexibilization.growth:.5f} /h with every measured cap and the "
+            f"protein pool free to grow, short of "
             f"the dilution rate {condition.d_rate}. Protein is not what limits it: "
             "check the carbon budget, the biomass composition and the maintenance "
-            "cost before flexibilizing further."
+            "cost."
         )
 
     if fit_rates:
@@ -269,8 +275,8 @@ def report(result: BuildResult) -> None:
         f"pool={result.pool_size:.1f} mg/gDW\n"
         f"  {result.n_kept} proteins kept, {result.n_measured} are model enzymes, "
         f"{len(result.minimum_usage.raised)} raised to their minimum usage\n"
-        f"  flexibilized {len(flex.released)} enzymes, pool grown "
-        f"{flex.pool_increases}x ({flex.pool_before:.1f}->{flex.pool_after:.1f})\n"
+        f"  relaxed {len(flex.released)} abundances to reach the dilution rate, pool "
+        f"{flex.pool_before:.1f}->{flex.pool_after:.1f}\n"
         + (f"  relaxed {len(result.rate_fit.proteins)} abundances to fit the "
            f"measured rates, adding {result.rate_fit.added_mg:.2f} mg/gDW\n"
            if result.rate_fit else "")
@@ -345,6 +351,26 @@ def summary_table(results: list[BuildResult]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def update_summary(path: Path, summary: pd.DataFrame) -> pd.DataFrame:
+    """Write the rows of the conditions just built into the summary at ``path``.
+
+    Rows of conditions built by another call are kept, so building the
+    conditions one at a time gives the same table as building them together.
+    """
+    if path.exists():
+        previous = pd.read_csv(path, sep="\t")
+        kept = previous[~previous["condition"].isin(summary["condition"])]
+        summary = pd.concat([kept, summary], ignore_index=True)
+    rank = {name: i for i, name in enumerate(CONDITION_ORDER)}
+    summary = summary.sort_values(
+        "condition", key=lambda names: names.map(lambda name: rank.get(name, len(rank))),
+        kind="stable",
+    ).reset_index(drop=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary.to_csv(path, sep="\t", index=False)
+    return summary
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("conditions", nargs="*", default=list(CONDITION_ORDER))
@@ -367,6 +393,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--block", nargs="+", default=[], metavar="RXN",
         help="reaction IDs to close before the model is built, e.g. r_2129 (the "
              "proton leak)",
+    )
+    parser.add_argument(
+        "--respiratory-kcats", type=Path, metavar="TSV",
+        help="kcats of the respiratory complexes written by overflow.respiratory_kcats "
+             "(modelGeneration/respiratoryKcats.tsv), applied before the model is built",
     )
     parser.add_argument(
         "--objective",
@@ -399,6 +430,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     conditions = load_conditions()
     table = read_proteomics()
     masses = molecular_masses()
+    respiratory_kcats = (
+        pd.read_csv(args.respiratory_kcats, sep="\t") if args.respiratory_kcats else None
+    )
 
     results = []
     for name in args.conditions or CONDITION_ORDER:
@@ -414,14 +448,14 @@ def main(argv: Optional[list[str]] = None) -> int:
             rate_tolerance=args.rate_tolerance,
             uptake_flex=args.uptake_flex,
             objective=args.objective, block=args.block,
+            respiratory_kcats=respiratory_kcats,
         )
         write_outputs(result, args.models_dir, args.results_dir)
         results.append(result)
 
-    summary = summary_table(results)
-    args.results_dir.mkdir(parents=True, exist_ok=True)
-    summary.to_csv(args.results_dir / "modelGeneration" / "summary.tsv",
-                   sep="\t", index=False)
+    summary = update_summary(
+        args.results_dir / "modelGeneration" / "summary.tsv", summary_table(results)
+    )
     print()
     print(summary.to_string(index=False))
     return 0

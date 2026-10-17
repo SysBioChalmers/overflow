@@ -1,0 +1,4 @@
+complex	reaction	condition	kcat_per_s	ecmodel_kcat_per_s
+ATP synthase	r_0226	CN75	1607.695903	84.649052
+complex III	r_0439	CN75	1452.134199	290.494288
+complex IV	r_0438	CN75	3242.055529	1376.34631
