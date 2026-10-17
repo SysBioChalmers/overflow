@@ -16,11 +16,14 @@ XIA = HERE.parent
 SETS = {
     "ThisStudy": dict(root=REPO, conds=["CN4", "CN22", "CN38", "CN75", "hGR"],
                       label="This study", colour=LEGACY_COLOURS[1], marker="o"),
-    "Xia": dict(root=XIA, conds=["mu010", "mu028", "mu033"],
+    "Xia": dict(root=XIA, conds=["mu003", "mu010", "mu015", "mu021", "mu025", "mu028", "mu033", "mu038"],
                 label="Xia et al. 2022", colour=LEGACY_COLOURS[2], marker="^"),
 }
-DISPLAY = {"mu010": "μ0.10", "mu028": "μ0.28", "mu033": "μ0.33"}
+DISPLAY = {c: f"μ{int(c[2:]) / 100:.2f}" for c in SETS["Xia"]["conds"]}
 ORDER = [c for s in SETS.values() for c in s["conds"]]
+#: bar positions, with a gap between the datasets
+POSITIONS = np.concatenate([np.arange(len(ORDER))[:len(SETS["ThisStudy"]["conds"])],
+                            np.arange(len(ORDER))[len(SETS["ThisStudy"]["conds"]):] + 0.6])
 SYSTEMS = ("Glycolysis", "TCA cycle", "ETC", "Ribosome")
 SUPPLEMENT = ("PP shunt", "THF cycle", "Nitrogen metabolism", "Amino acid metabolism")
 EXCHANGES = {"Glucose": "r_1714", "CO2": "r_1672", "Oxygen": "r_1992", "Ethanol": "r_1761"}
@@ -167,9 +170,9 @@ def limit_table():
 def figure_usage(systems, stem):
     k = read("ThisStudy", "results", "enzymeUsage", "capUsage.tsv")
     x = read("Xia", "results", "enzymeUsage", "capUsage.tsv")
-    both = k.drop(columns=["GOterm"]).merge(x[["protID", "mu010", "mu028", "mu033"]], on="protID", how="outer")
+    both = k.drop(columns=["GOterm"]).merge(x[["protID", *SETS["Xia"]["conds"]]], on="protID", how="outer")
     both["GOterm"] = both["protID"].map(dict(zip(pd.concat([k, x])["protID"], pd.concat([k, x])["GOterm"])))
-    fig = capacity_usage_figure(both, systems=systems, conditions=ORDER, width=14 / 2.54, height=5 / 2.54)
+    fig = capacity_usage_figure(both, systems=systems, conditions=ORDER, width=18 / 2.54, height=5 / 2.54)
     for axis in fig.axes:
         axis.axvline(5.5, color="#878787", linewidth=LINE, linestyle=(0, (2, 2)))
         axis.set_xticklabels([name(c) for c in ORDER])
@@ -212,7 +215,7 @@ def figure_reserve(r):
         fig, axes = plt.subplots(1, 4, figsize=(16 / 2.54, 5.5 / 2.54))
         for index, (axis, system) in enumerate(zip(axes, SYSTEMS)):
             sub = r[r["system"] == system].set_index("condition").loc[ORDER]
-            xs = np.arange(len(ORDER)) + np.array([0] * 5 + [0.6] * 3)
+            xs = POSITIONS
             colour = LEGACY_COLOURS[index]
             axis.bar(xs, sub["cap"], width=0.75, color="white", edgecolor=colour, linewidth=0.35 * _POINTS_PER_SIZE)
             axis.bar(xs, sub["used"], width=0.75, color=colour, edgecolor=colour, linewidth=0.35 * _POINTS_PER_SIZE)
@@ -229,7 +232,7 @@ def figure_atp():
     f = selected_fluxes()[ORDER]
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(1, 3, figsize=(16 / 2.54, 5.5 / 2.54), gridspec_kw=dict(width_ratios=[1, 1, 0.9]))
-        xs = np.arange(len(ORDER)) + np.array([0] * 5 + [0.6] * 3)
+        xs = POSITIONS
         labels = [name(c) for c in ORDER]
         supply = [("ETC", f.loc["ETC_rATP"], LEGACY_COLOURS[2]), ("glycolysis", f.loc["glycolysis_rATP"], LEGACY_COLOURS[0])]
         demand = [("growth (GAEC)", f.loc["GAEC_rATP"], LEGACY_COLOURS[1]), ("other metabolism", f.loc["Metabolism_rATP"], LEGACY_COLOURS[3]),
@@ -266,7 +269,10 @@ def figure_limit(limits, variant):
     curves = pd.concat(pd.read_csv(f, sep="\t") for f in OUT.glob(f"curve_*_{variant}.tsv") if f.stat().st_size > 1)
     with plt.rc_context(STYLE):
         fig, axes = plt.subplots(1, 2, figsize=(14 / 2.54, 5.5 / 2.54), sharey=True)
-        palette = dict(zip(ORDER, ["#CBBBA0", "#A08F6E", "#6E5F45", "#1D1D1B", "#878787", "#9CC3E6", "#1D71B8", "#0B3B66"]))
+        xia = SETS["Xia"]["conds"]
+        blues = matplotlib.colors.LinearSegmentedColormap.from_list("xia", ["#6FA8DC", "#1D71B8", "#0B3B66"])
+        palette = dict(zip(SETS["ThisStudy"]["conds"], ["#CBBBA0", "#A08F6E", "#6E5F45", "#1D1D1B", "#878787"]))
+        palette.update({c: matplotlib.colors.to_hex(blues(i / (len(xia) - 1))) for i, c in enumerate(xia)})
         limit = limits[limits["variant"] == variant].set_index("condition")["respiratory_limit"]
         axes[0].axvspan(1.7, 2.3, color="#E6E0D4", linewidth=0, zorder=0)
         axes[0].text(2.35, 13.5, "reported onset of overflow", ha="left", va="center", fontsize=SMALL - 0.6, color="#6E5F45")
@@ -282,7 +288,7 @@ def figure_limit(limits, variant):
                           markerfacecolor=palette[c] if overflowing(c) else "white", markeredgewidth=0.7)
             axis.set_title(s["label"], color="#1A1A1A")
             axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
-            axis.set_xlim(0.5, 7)
+            axis.set_xlim(0.2, 7.2)
             axis.set_ylim(-1, 14)
             axis.legend(fontsize=SMALL - 0.6, loc="upper left", handlelength=1.2)
         axes[0].set_ylabel("Forced overflow (mmol C/gDW/h)", fontsize=SMALL)
@@ -303,16 +309,19 @@ def figure_turnover():
                 d = t[t["complex"] == cx].set_index("condition").loc[s["conds"]]
                 xs = [FERM.loc[c, "Glucose"] for c in s["conds"]]
                 axis.plot(xs, d["relative_to_highest"], color=s["colour"], linewidth=0.6)
-                for c, x in zip(s["conds"], xs):
+                for i, (c, x) in enumerate(zip(s["conds"], xs)):
                     y = d.loc[c, "relative_to_highest"]
                     axis.plot(x, y, s["marker"], markersize=3.5, color=s["colour"],
                               markerfacecolor=s["colour"] if overflowing(c) else "white", markeredgewidth=0.6)
-                    xia = ds == "Xia"
-                    axis.annotate(name(c), (x, y), xytext=(-3, 4) if xia else (3, -8), textcoords="offset points",
-                                  ha="right" if xia else "left", fontsize=SMALL - 1.4, color=s["colour"])
+                    # the Xia series is dense and its uptake rises with growth rate: label its ends and mu028
+                    if ds == "Xia" and 0 < i < len(xs) - 1 and c != "mu028":
+                        continue
+                    above = ds == "Xia" and c != "mu028"
+                    axis.annotate(name(c), (x, y), xytext=(-2, 5) if above else (3, -8), textcoords="offset points",
+                                  ha="right" if above else "left", fontsize=SMALL - 1.4, color=s["colour"])
             axis.set_title(cx[0].upper() + cx[1:], color="#1A1A1A")
             axis.set_ylim(0, 1.15)
-            axis.set_xlim(0.4, 6.1)
+            axis.set_xlim(0, 7.2)
             axis.set_xlabel("Glucose uptake (mmol/gDW/h)", fontsize=SMALL)
         axes[0].set_ylabel("Apparent turnover / highest in dataset", fontsize=SMALL)
         handles = [plt.Line2D([], [], color=s["colour"], marker=s["marker"], markersize=3.5, linewidth=0.6, label=s["label"])

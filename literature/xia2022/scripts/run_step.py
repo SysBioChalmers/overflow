@@ -11,7 +11,7 @@ from pathlib import Path
 
 RUN = Path(__file__).resolve().parents[1]
 DATA = RUN / "data"
-NAMES = ("mu010", "mu028", "mu033")
+NAMES = ("mu003", "mu010", "mu015", "mu021", "mu025", "mu028", "mu033", "mu038")
 
 import overflow.config as config  # noqa: E402
 
@@ -35,8 +35,8 @@ proteomics.read_proteomics.__defaults__ = (config.PROTEOMICS_DATA,)
 #: The core ribosome: the 48 subunits of this study, with the paralog this
 #: dataset quantifies at the seven positions where it measures the other one
 #: (data/ribosome_core.tsv). Re-selecting the core by abundance on this
-#: dataset gives 80 subunits, as the paralog groups it quantifies cross the
-#: threshold, and leaves mu033 without the protein to grow.
+#: dataset gives 77 subunits, as the paralog groups it quantifies cross the
+#: threshold.
 CORE = DATA / "ribosome_core.tsv"
 
 

@@ -1,12 +1,17 @@
 # Glucose-limited chemostat series (Xia et al. 2022)
 
-The analysis of this repository run on three conditions of the glucose-limited chemostat series of Xia et al. (2022), *Nat Commun* 13:2819, [doi:10.1038/s41467-022-30513-2](https://doi.org/10.1038/s41467-022-30513-2), and compared with the results of this study in `results/`.
+The analysis of this repository run on eight conditions of the glucose-limited chemostat series of Xia et al. (2022), *Nat Commun* 13:2819, [doi:10.1038/s41467-022-30513-2](https://doi.org/10.1038/s41467-022-30513-2), and compared with the results of this study in `results/`.
 
 | Condition | D [1/h] | Ptot [g/gDW] | Ethanol [mmol/gDW/h] |
 |---|---|---|---|
+| mu003 | 0.027 | 0.299 | – |
 | mu010 | 0.10225 | 0.371 | – |
+| mu015 | 0.152 | 0.419 | – |
+| mu021 | 0.21425 | 0.320 | – |
+| mu025 | 0.254 | 0.378 | – |
 | mu028 | 0.28425 | 0.391 | – |
 | mu033 | 0.33375 | 0.419 | 2.19 |
+| mu038 | 0.3785 | 0.391 | 5.83 |
 
 How the data were converted is in [`data/README.md`](data/README.md).
 
@@ -17,9 +22,9 @@ How the data were converted is in [`data/README.md`](data/README.md).
 ```bash
 X=literature/xia2022
 O="--models-dir $X/models --results-dir $X/results"
-python $X/scripts/run_step.py run_sampling --procs 12 --results-dir $X/results
+python $X/scripts/run_step.py run_sampling --procs 12 --rate-tolerance 0.16 --results-dir $X/results
 python $X/scripts/run_step.py respiratory_kcats --results-dir $X/results
-python $X/scripts/run_step.py build --fit-rates --rate-tolerance 0.12 --uptake-flex 1.08 --block r_2129 --respiratory-kcats $X/results/modelGeneration/respiratoryKcats.tsv $O
+python $X/scripts/run_step.py build --fit-rates --rate-tolerance 0.16 --uptake-flex 1.14 --block r_2129 --respiratory-kcats $X/results/modelGeneration/respiratoryKcats.tsv $O
 python $X/scripts/run_step.py build_ribosome $O
 python $X/scripts/run_step.py analyze_usage $O
 ```
@@ -28,8 +33,10 @@ The kcats of complex III, complex IV and ATP synthase are derived from this seri
 
 ### Departures from the recipe of this study
 
-- `--rate-tolerance 0.12` instead of 0.08. At 0.08 mu010 has no solution: holding glucose, CO2 and O2 together needs at least 11.6%, even with protein unlimited. As in this study, the protein objective puts predicted glucose at the top of its band: 1.12× measured here, 1.08× there.
-- GAM is the model's (55.3), as in this study. The series' respiratory rates imply a lower GAM (about 32 with NGAM 0.64), which was not used.
+- `--rate-tolerance 0.16` instead of 0.08, in the build and in sampling (0.05 in this study). Holding growth, glucose, CO2 and O2 together needs at least 15.4% at mu015, 12.7% at mu025 and 11.6% at mu010, even with protein unlimited. The measured O2 uptake of the series exceeds what complete oxidation of its measured glucose consumes by 7–46%, so the band has to absorb the difference. As in this study, the protein objective puts predicted glucose at the top of its band: 1.16× measured here, 1.08× there.
+- `--uptake-flex 1.14` instead of 1.08: at 1.08× measured glucose mu015 and mu025 cannot reach their dilution rate.
+- GAM is the model's (55.3), as in this study. Fitted on this series alone, with glucose fixed and O2 free, it would be about 35 (95% interval 22–48); this study's conditions without ethanol all grow at D = 0.1, so its data cannot fit one. One GAM keeps the ATP budgets of the two datasets comparable. At 55.3 the build's maintenance fit finds 0 for every condition but mu003, and no non-negative value at mu010 and mu015; the rate band absorbs the difference.
+- The series' μ = 0.044 condition (samples S4–S6) is not included.
 - The core ribosome is fixed rather than re-selected; see [`data/README.md`](data/README.md#core-ribosome).
 - `overflow.compare` is not run: it compares against the MATLAB results of this study's conditions only.
 - `--block r_2129` applies to the ecModels. Sampling uses the conventional GEM, where the proton leak stays open, as in this study.
@@ -41,12 +48,12 @@ The series attributes all of Ptot to measured proteins, while in this study the 
 `comparison/` puts both datasets side by side. It needs the ecModels of both runs, so run this study's recipe first.
 
 ```bash
-for c in CN4 CN22 CN38 CN75 hGR; do for v in built measured; do python $X/comparison/respiratory_limit.py ThisStudy $c $v; done; done
-for c in mu010 mu028 mu033;      do for v in built measured; do python $X/comparison/respiratory_limit.py Xia $c $v; done; done
+for c in CN4 CN22 CN38 CN75 hGR;                            do for v in built measured; do python $X/comparison/respiratory_limit.py ThisStudy $c $v; done; done
+for c in mu003 mu010 mu015 mu021 mu025 mu028 mu033 mu038; do for v in built measured; do python $X/comparison/respiratory_limit.py Xia $c $v; done; done
 python $X/comparison/figures.py
 ```
 
-`respiratory_limit.py` finds a condition's respiratory limit: the highest glucose uptake its measured proteome can respire completely at the condition's growth rate. Above it, the model has to secrete overflow carbon. The ecModel is held at the dilution rate with maintenance ATP free, so surplus glucose can be respired until a measured enzyme cap stops it. Caps the pipeline raised so that the model could grow (minimum usage, relaxation to the dilution rate) carry no capacity information and are lifted, for the whole complex. Unlisted exits are closed except glycine export, which levelled models need at some growth rates. Caps the rate fit raised are kept as built (`built`), or put back to the measured abundance (`measured`). The limit is the largest uptake with no more than 0.05 mmol C/gDW/h of forced ethanol, acetate, glycerol and formate. Each run writes its curve and limit to `comparison/respiratory_limit/` (not committed); `figures.py` collects them into Table 5 and figure 5. A condition is predicted to overflow when its measured glucose uptake exceeds its limit; the onset of overflow itself is the measured physiology.
+`respiratory_limit.py` finds a condition's respiratory limit: the highest glucose uptake its measured proteome can respire completely at the condition's growth rate. Above it, the model has to secrete overflow carbon. The ecModel is held at the dilution rate with maintenance ATP free, so surplus glucose can be respired until a measured enzyme cap stops it. Caps the pipeline raised so that the model could grow (minimum usage, relaxation to the dilution rate) carry no capacity information and are lifted, for the whole complex. Unlisted exits are closed except glycine export, which levelled models need at some growth rates. Caps the rate fit raised are kept as built (`built`), or put back to the measured abundance (`measured`). The limit is the largest uptake with no more than 0.05 mmol C/gDW/h of forced ethanol, acetate, glycerol and formate. Each run writes its curve and limit to `comparison/respiratory_limit/` (not committed); `figures.py` collects them into Table 5 and figure 5. A condition is predicted to overflow when its measured glucose uptake exceeds its limit; the onset of overflow itself is the measured physiology. As the respiratory-chain kcats are the highest apparent turnover within each dataset, the prediction is a consistency check rather than an independent test: the conditions that set the kcats run their respiratory chain at capacity.
 
 | Output (`comparison/`, figures as PDF) | Contents |
 |---|---|

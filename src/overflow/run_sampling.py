@@ -66,6 +66,7 @@ def run(
     replace_max_bound: bool = False,
     min_flux: bool = True,
     loopless: bool = True,
+    rate_tolerance: float = 0.05,
     verbose: bool = True,
 ) -> dict[str, dict]:
     """Sample each condition twice and summarise.
@@ -100,13 +101,13 @@ def run(
             model.copy(), condition, n_samples=n_samples, include_formate=False,
             seed=seed, good_reactions=good_free, n_proc=n_proc,
             replace_max_bound=replace_max_bound, min_flux=min_flux,
-            loopless=loopless,
+            loopless=loopless, tolerance=rate_tolerance,
         )
         full, good_full = sample_condition(
             model, condition, n_samples=n_samples, include_formate=True,
             seed=seed, good_reactions=good_full, n_proc=n_proc,
             replace_max_bound=replace_max_bound, min_flux=min_flux,
-            loopless=loopless,
+            loopless=loopless, tolerance=rate_tolerance,
         )
 
         summary = selected_fluxes(
@@ -210,6 +211,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--keep-loops", action="store_true",
         help="do not tighten reactions to their loop-free range first",
     )
+    parser.add_argument(
+        "--rate-tolerance", type=float, default=0.05,
+        help="relative band around each measured rate and the growth rate",
+    )
     parser.add_argument("--solver", help=HELP)
     parser.add_argument(
         "--merge", nargs="+", type=Path, metavar="RESULTS_DIR",
@@ -239,7 +244,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         args.conditions, n_samples=args.samples, seed=args.seed,
         n_proc=args.procs, cache=args.cache,
         replace_max_bound=args.replace_max_bound, min_flux=args.min_flux,
-        loopless=not args.keep_loops,
+        loopless=not args.keep_loops, rate_tolerance=args.rate_tolerance,
     )
 
     out = args.results_dir / "randomSampling"
